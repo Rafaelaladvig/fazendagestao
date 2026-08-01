@@ -824,33 +824,175 @@ function fillSubcategoriaSelect(elId, categoriaId, currentId){
 }
 
 // ================= DASHBOARD =================
+function fmtPct(v){ return v==null ? '—' : v.toFixed(1)+'%'; }
+function fmtSacasDash(v){ return v==null ? '—' : fmtSacas(v); }
+function calcDashboardMetrics(despesasF, receitasF){
+  // Faturamento amplo (toda receita, qualquer tipo financeiro) — base do "% do faturado"
+  const totalReceitaValor = receitasF.reduce((a,b)=>a+Number(b.valor_total||0),0);
+
+  // Vendas de produto (só categorias do tipo financeiro "Receita") — base do preço médio
+  const receitasProduto = receitasF.filter(r=>{
+    const c = D.categorias.find(x=>x.id===r.categoria_id);
+    return c && c.tipo_financeiro==='Receita';
+  });
+  const totalQtdProduto = receitasProduto.reduce((a,b)=>a+Number(b.quantidade||0),0);
+  const totalValorProduto = receitasProduto.reduce((a,b)=>a+Number(b.valor_total||0),0);
+  const precoMedio = totalQtdProduto>0 ? totalValorProduto/totalQtdProduto : 0;
+
+  // Vendas por produto (para a tabela de detalhamento)
+  const porProduto = {};
+  receitasProduto.forEach(r=>{
+    const nome = categoriaNome(r.categoria_id);
+    if (!porProduto[nome]) porProduto[nome] = { qtd:0, valor:0 };
+    porProduto[nome].qtd += Number(r.quantidade||0);
+    porProduto[nome].valor += Number(r.valor_total||0);
+  });
+
+  // Despesas operacionais (grupo "Despesa" — só essas têm fixa/variável) = custo de produção
+  const despOperacional = despesasF.filter(d=>d.tipo_fixo_variavel);
+  const despFixa = despOperacional.filter(d=>d.tipo_fixo_variavel==='fixa');
+  const despVar = despOperacional.filter(d=>d.tipo_fixo_variavel==='variavel');
+  const valorFixa = despFixa.reduce((a,b)=>a+Number(b.valor_total||0),0);
+  const valorVar = despVar.reduce((a,b)=>a+Number(b.valor_total||0),0);
+  const valorTotalDesp = valorFixa + valorVar;
+
+  const sacasFixa = precoMedio>0 ? valorFixa/precoMedio : null;
+  const sacasVar = precoMedio>0 ? valorVar/precoMedio : null;
+  const sacasTotalDesp = precoMedio>0 ? valorTotalDesp/precoMedio : null;
+
+  // Investimentos/financiamentos ficam FORA do custo de produção (natureza diferente)
+  const valorInvestFinanc = despesasF.reduce((a,b)=>a+Number(b.valor_total||0),0) - valorTotalDesp;
+
+  const custoHoje = valorTotalDesp; // tudo que já foi lançado, pago ou não
+  const custoRealizado = despOperacional.filter(d=>d.status==='pago').reduce((a,b)=>a+Number(b.valor_total||0),0);
+  const custoProjetado = custoHoje * 1.3;
+
+  const pontoEqHoje = precoMedio>0 ? custoHoje/precoMedio : null;
+  const pontoEqProjetado = precoMedio>0 ? custoProjetado/precoMedio : null;
+  const pontoEqRealizado = precoMedio>0 ? custoRealizado/precoMedio : null;
+
+  // Ranking de categorias (todas as despesas, para visão geral de onde o dinheiro vai)
+  const porCategoria = {};
+  despesasF.forEach(d=>{
+    const nome = categoriaNome(d.categoria_id);
+    porCategoria[nome] = (porCategoria[nome]||0) + Number(d.valor_total||0);
+  });
+  const totalTodasDespesas = despesasF.reduce((a,b)=>a+Number(b.valor_total||0),0);
+  const rankingCategorias = Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]);
+
+  const pct = v => totalReceitaValor>0 ? (v/totalReceitaValor*100) : null;
+
+  return {
+    totalReceitaValor, totalQtdProduto, precoMedio, porProduto,
+    valorFixa, valorVar, valorTotalDesp, valorInvestFinanc,
+    sacasFixa, sacasVar, sacasTotalDesp,
+    custoHoje, custoRealizado, custoProjetado,
+    pontoEqHoje, pontoEqProjetado, pontoEqRealizado,
+    rankingCategorias, totalTodasDespesas, pct
+  };
+}
 function renderDashboard(){
   const el = document.getElementById('tab-dashboard');
   const lancF = filterByFazendaGlobal(D.lancamentos);
   const despesasF = lancF.filter(l=>l.tipo==='despesa');
   const receitasF = lancF.filter(l=>l.tipo==='receita');
   const totalDespesasPago = despesasF.filter(d=>d.status==='pago').reduce((a,b)=>a+Number(b.valor_total||0),0);
-  const totalDespesasPend = despesasF.filter(d=>d.status==='pendente').reduce((a,b)=>a+Number(b.valor_total||0),0);
-  const totalReceitas = receitasF.reduce((a,b)=>a+Number(b.valor_total||0),0);
   const totalContratos = D.contratos.reduce((a,b)=>a+Number(b.valor_total||0),0);
-  const saldo = totalReceitas - totalDespesasPago;
   const producaoF = filterByFazendaGlobal(D.producao);
   const totalProducao = producaoF.reduce((a,b)=>a+Number(b.quantidade_liquida_sacas||0),0);
+
+  if (!D.safraAtual){
+    el.innerHTML = `<div class="pageTitle">Dashboard</div><div class="pageDesc">Selecione uma safra para ver os números</div>${noSafraMsg()}`;
+    return;
+  }
+
+  const m = calcDashboardMetrics(despesasF, receitasF);
+  const saldo = m.totalReceitaValor - totalDespesasPago;
+
   el.innerHTML = `
     <div class="pageTitle">Dashboard</div>
-    <div class="pageDesc">${D.safraAtual ? 'Resumo da safra selecionada' + (D.fazendaFiltro ? ' · filtrado por fazenda' : '') : 'Selecione uma safra para ver os números'}</div>
+    <div class="pageDesc">Visão completa da safra selecionada${D.fazendaFiltro ? ' · filtrado por fazenda' : ''}</div>
+
     <div class="kpis">
-      <div class="kpi"><div class="lbl">Receitas</div><div class="val">${fmtBRL(totalReceitas)}</div></div>
-      <div class="kpi"><div class="lbl">Despesas pagas</div><div class="val">${fmtBRL(totalDespesasPago)}</div></div>
-      <div class="kpi"><div class="lbl">Despesas em aberto</div><div class="val orange">${fmtBRL(totalDespesasPend)}</div></div>
+      <div class="kpi"><div class="lbl">Faturamento (receitas)</div><div class="val">${fmtBRL(m.totalReceitaValor)}</div></div>
+      <div class="kpi"><div class="lbl">Quantidade vendida</div><div class="val">${fmtSacas(m.totalQtdProduto)}</div></div>
+      <div class="kpi"><div class="lbl">Preço médio de venda</div><div class="val">${m.precoMedio>0 ? fmtBRL(m.precoMedio)+'/sc' : '—'}</div></div>
+      <div class="kpi"><div class="lbl">Despesas totais (custo)</div><div class="val orange">${fmtBRL(m.valorTotalDesp)}</div></div>
       <div class="kpi"><div class="lbl">Saldo (receita - pago)</div><div class="val ${saldo<0?'red':''}">${fmtBRL(saldo)}</div></div>
       <div class="kpi"><div class="lbl">Produção líquida</div><div class="val">${fmtSacas(totalProducao)}</div></div>
-      <div class="kpi"><div class="lbl">Contratos firmados</div><div class="val">${fmtBRL(totalContratos)}</div></div>
     </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="cardHead"><h3>Despesas fixas × variáveis</h3></div>
+        <table><thead><tr><th>Tipo</th><th>Valor (R$)</th><th>% do faturado</th><th>Sacas equiv.</th></tr></thead><tbody>
+          <tr><td>Fixas</td><td>${fmtBRL(m.valorFixa)}</td><td>${fmtPct(m.pct(m.valorFixa))}</td><td>${fmtSacasDash(m.sacasFixa)}</td></tr>
+          <tr><td>Variáveis</td><td>${fmtBRL(m.valorVar)}</td><td>${fmtPct(m.pct(m.valorVar))}</td><td>${fmtSacasDash(m.sacasVar)}</td></tr>
+          <tr style="font-weight:700; color:var(--verde2);"><td>Total</td><td>${fmtBRL(m.valorTotalDesp)}</td><td>${fmtPct(m.pct(m.valorTotalDesp))}</td><td>${fmtSacasDash(m.sacasTotalDesp)}</td></tr>
+        </tbody></table>
+        ${m.valorInvestFinanc>0 ? `<div class="pageDesc" style="margin:12px 0 0;">Investimentos/financiamentos (fora do custo de produção): <b>${fmtBRL(m.valorInvestFinanc)}</b></div>` : ''}
+        ${m.precoMedio<=0 ? `<div class="pageDesc" style="margin:8px 0 0;">Lance uma receita de venda para calcular o equivalente em sacas.</div>` : ''}
+      </div>
+
+      <div class="card">
+        <div class="cardHead"><h3>Custo de produção</h3></div>
+        <table><thead><tr><th>Cenário</th><th>Valor (R$)</th><th>% do faturado</th><th>Sacas equiv.</th></tr></thead><tbody>
+          <tr><td>Hoje (lançado, pago ou não)</td><td>${fmtBRL(m.custoHoje)}</td><td>${fmtPct(m.pct(m.custoHoje))}</td><td>${fmtSacasDash(m.pontoEqHoje)}</td></tr>
+          <tr><td>Projetado (hoje + 30%)</td><td>${fmtBRL(m.custoProjetado)}</td><td>${fmtPct(m.pct(m.custoProjetado))}</td><td>${fmtSacasDash(m.pontoEqProjetado)}</td></tr>
+          <tr><td>Realizado (já pago)</td><td>${fmtBRL(m.custoRealizado)}</td><td>${fmtPct(m.pct(m.custoRealizado))}</td><td>${fmtSacasDash(m.pontoEqRealizado)}</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardHead"><h3>Ponto de equilíbrio</h3></div>
+      <div class="pageDesc" style="margin-bottom:14px;">Quantidade de sacas que precisam ser vendidas, ao preço médio atual (${m.precoMedio>0?fmtBRL(m.precoMedio)+'/sc':'—'}), para cobrir o custo de produção.</div>
+      <div class="grid3">
+        ${pontoEqCard('Hoje', m.pontoEqHoje, m.totalQtdProduto)}
+        ${pontoEqCard('Projetado', m.pontoEqProjetado, m.totalQtdProduto)}
+        ${pontoEqCard('Realizado', m.pontoEqRealizado, m.totalQtdProduto)}
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="cardHead"><h3>Ranking de categorias de despesa</h3></div>
+        ${m.rankingCategorias.length ? `<table><thead><tr><th>Categoria</th><th>Valor (R$)</th><th>% das despesas</th><th>% do faturado</th></tr></thead><tbody>
+          ${m.rankingCategorias.map(([nome,val])=>{
+            const pctDesp = m.totalTodasDespesas>0 ? (val/m.totalTodasDespesas*100) : null;
+            return `<tr><td>${esc(nome)}</td><td>${fmtBRL(val)}</td><td>${fmtPct(pctDesp)}</td><td>${fmtPct(m.pct(val))}</td></tr>`;
+          }).join('')}
+        </tbody></table>` : `<div class="empty">Nenhuma despesa lançada nesta safra.</div>`}
+      </div>
+
+      <div class="card">
+        <div class="cardHead"><h3>Vendas por produto</h3></div>
+        ${Object.keys(m.porProduto).length ? `<table><thead><tr><th>Produto</th><th>Sacas vendidas</th><th>Valor (R$)</th><th>Preço médio</th></tr></thead><tbody>
+          ${Object.entries(m.porProduto).sort((a,b)=>b[1].valor-a[1].valor).map(([nome,v])=>`<tr>
+            <td>${esc(nome)}</td><td>${fmtSacas(v.qtd)}</td><td>${fmtBRL(v.valor)}</td><td>${v.qtd>0?fmtBRL(v.valor/v.qtd)+'/sc':'—'}</td>
+          </tr>`).join('')}
+        </tbody></table>` : `<div class="empty">Nenhuma venda de produto lançada nesta safra.</div>`}
+      </div>
+    </div>
+
     <div class="card">
       <div class="cardHead"><h3>Próximos vencimentos</h3></div>
       ${renderVencimentosList(despesasF)}
     </div>`;
+}
+function pontoEqCard(label, sacas, jaVendido){
+  if (sacas==null){
+    return `<div class="kpi"><div class="lbl">${esc(label)}</div><div class="val">—</div></div>`;
+  }
+  const diff = jaVendido - sacas;
+  const atingido = diff >= 0;
+  return `<div class="kpi">
+    <div class="lbl">${esc(label)}</div>
+    <div class="val">${fmtSacas(sacas)}</div>
+    <div style="font-size:12px; margin-top:6px; color:${atingido?'var(--pago)':'var(--vermelho)'}; font-weight:600;">
+      ${atingido ? '✓ Ponto de equilíbrio atingido' : 'Faltam '+fmtSacas(Math.abs(diff))+' para equilibrar'}
+    </div>
+  </div>`;
 }
 function renderVencimentosList(list){
   const pend = list.filter(d=>d.status==='pendente').sort((a,b)=>(a.data_vencimento||'').localeCompare(b.data_vencimento||'')).slice(0,6);
