@@ -368,6 +368,13 @@ tr:last-child td{border-bottom:none;}
     <label>Tipo</label>
     <select id="dsTipo"><option value="fixa">Fixa</option><option value="variavel">Variável</option></select>
   </div>
+  <div class="field" id="dsMaquinaWrap" style="display:none">
+    <label>Qual máquina?</label>
+    <div style="display:flex; gap:8px;">
+      <select id="dsMaquina" style="flex:1"></select>
+      <button type="button" class="btn small secondary" style="width:auto" onclick="openMaquinaQuick()">+</button>
+    </div>
+  </div>
   <div class="field"><label>Fazenda</label><select id="dsFazenda"></select></div>
   <div class="field"><label>Descrição / produto</label><input id="dsDescricao" placeholder="Descreva a despesa"></div>
   <div class="grid2">
@@ -509,6 +516,61 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div></div>
 
+<div class="overlay" id="ovMaquinaQuick"><div class="modal" style="width:380px">
+  <h3>Nova Máquina</h3>
+  <div class="field"><label>Nome/identificação</label><input id="mqNome" placeholder="Ex: Trator John Deere 6110J"></div>
+  <div class="field"><label>Tipo (opcional)</label>
+    <select id="mqTipo">
+      <option value="">Selecione</option>
+      <option value="Trator">Trator</option>
+      <option value="Colheitadeira">Colheitadeira</option>
+      <option value="Pulverizador">Pulverizador</option>
+      <option value="Plantadeira">Plantadeira</option>
+      <option value="Implemento">Implemento</option>
+      <option value="Caminhão">Caminhão</option>
+      <option value="Outro">Outro</option>
+    </select>
+  </div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovMaquinaQuick')">Cancelar</button>
+    <button class="btn" onclick="saveMaquinaQuick()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="ovMaquinario"><div class="modal">
+  <h3 id="mqModalTitle">Novo Maquinário</h3>
+  <input type="hidden" id="mqId">
+  <div class="field"><label>Nome/identificação</label><input id="mqNomeFull" placeholder="Ex: Trator John Deere 6110J"></div>
+  <div class="grid2">
+    <div class="field"><label>Tipo</label>
+      <select id="mqTipoFull">
+        <option value="">Selecione</option>
+        <option value="Trator">Trator</option>
+        <option value="Colheitadeira">Colheitadeira</option>
+        <option value="Pulverizador">Pulverizador</option>
+        <option value="Plantadeira">Plantadeira</option>
+        <option value="Implemento">Implemento</option>
+        <option value="Caminhão">Caminhão</option>
+        <option value="Outro">Outro</option>
+      </select>
+    </div>
+    <div class="field"><label>Fazenda (opcional)</label><select id="mqFazenda"><option value="">Sem fazenda específica</option></select></div>
+  </div>
+  <div class="grid2">
+    <div class="field"><label>Marca (opcional)</label><input id="mqMarca" placeholder="Ex: John Deere"></div>
+    <div class="field"><label>Modelo (opcional)</label><input id="mqModelo" placeholder="Ex: 6110J"></div>
+  </div>
+  <div class="grid2">
+    <div class="field"><label>Ano (opcional)</label><input id="mqAno" type="number" step="1" placeholder="Ex: 2019"></div>
+    <div class="field"><label>Placa/chassi/patrimônio (opcional)</label><input id="mqIdentificacao" placeholder="Identificação"></div>
+  </div>
+  <div class="field"><label>Observações (opcional)</label><input id="mqObservacoes" placeholder="Observações"></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovMaquinario')">Cancelar</button>
+    <button class="btn" onclick="saveMaquinario()">Salvar</button>
+  </div>
+</div></div>
+
 <div class="overlay" id="ovContrato"><div class="modal">
   <h3 id="ctModalTitle">Novo Contrato</h3>
   <input type="hidden" id="ctId">
@@ -542,7 +604,7 @@ const sb = supabase.createClient(SB_URL, SB_KEY);
 
 // ================= STATE =================
 let D = {
-  fazendas:[], safras:[], safraFazendas:{}, contas:[], pessoas:[], categorias:[], subcategorias:[], talhoes:[],
+  fazendas:[], safras:[], safraFazendas:{}, contas:[], pessoas:[], categorias:[], subcategorias:[], talhoes:[], maquinarios:[],
   lancamentos:[], contratos:[], producao:[],
   safraAtual:null, fazendaFiltro:'', currentTab:'dashboard', cadastroSub:'fazendas', categoriaSearch:''
 };
@@ -609,7 +671,7 @@ async function tryDelete(table, id){
 
 // ================= LOAD BASE =================
 async function loadBase(){
-  const [fz, sf, ct, ps, cat, sub, sfz, tl] = await Promise.all([
+  const [fz, sf, ct, ps, cat, sub, sfz, tl, mq] = await Promise.all([
     sb.from('faz_fazendas').select('*').order('nome'),
     sb.from('faz_safras').select('*').order('created_at',{ascending:false}),
     sb.from('faz_contas').select('*').order('nome'),
@@ -617,7 +679,8 @@ async function loadBase(){
     sb.from('faz_categorias').select('*').order('ordem'),
     sb.from('faz_subcategorias').select('*').order('ordem'),
     sb.from('faz_safra_fazendas').select('*'),
-    sb.from('faz_talhoes').select('*').order('nome')
+    sb.from('faz_talhoes').select('*').order('nome'),
+    sb.from('faz_maquinarios').select('*').order('nome')
   ]);
   D.fazendas = fz.data || [];
   D.safras = sf.data || [];
@@ -626,6 +689,7 @@ async function loadBase(){
   D.categorias = cat.data || [];
   D.subcategorias = sub.data || [];
   D.talhoes = tl.data || [];
+  D.maquinarios = mq.data || [];
   D.safraFazendas = {};
   (sfz.data || []).forEach(r=>{
     if (!D.safraFazendas[r.safra_id]) D.safraFazendas[r.safra_id] = [];
@@ -976,17 +1040,21 @@ async function savePessoaQuick(){
 }
 
 // ================= DESPESA =================
-function onDsCategoriaChange(preserveCatId, preserveSubId){
+function onDsCategoriaChange(preserveCatId, preserveSubId, preserveMaquinaId){
   const grupo = document.getElementById('dsCategoriaGrupo').value;
   document.getElementById('dsTipoWrap').style.display = grupo==='Despesa' ? 'block' : 'none';
   fillCategoriaSelect('dsCategoria', grupo, 'saida', preserveCatId||null);
   if (preserveCatId) document.getElementById('dsCategoria').value = preserveCatId;
-  onDsCategoriaSelChange(preserveSubId);
+  onDsCategoriaSelChange(preserveSubId, preserveMaquinaId);
 }
-function onDsCategoriaSelChange(preserveSubId){
+function onDsCategoriaSelChange(preserveSubId, preserveMaquinaId){
   const categoriaId = document.getElementById('dsCategoria').value;
   fillSubcategoriaSelect('dsSubcategoria', categoriaId, preserveSubId||null);
   if (preserveSubId) document.getElementById('dsSubcategoria').value = preserveSubId;
+  const cat = D.categorias.find(c=>c.id===categoriaId);
+  const showMaquina = !!(cat && cat.nome === 'Manutenção de máquinas');
+  document.getElementById('dsMaquinaWrap').style.display = showMaquina ? 'block' : 'none';
+  if (showMaquina) fillMaquinaSelect(preserveMaquinaId||null);
 }
 function calcDespesaTotal(){
   const q = Number(document.getElementById('dsQtd').value)||0;
@@ -994,6 +1062,28 @@ function calcDespesaTotal(){
   const t = q*v;
   document.getElementById('dsTotalDisplay').textContent = fmtBRL(t);
   return t;
+}
+function fillMaquinaSelect(selected){
+  const sel = document.getElementById('dsMaquina');
+  const list = D.maquinarios.filter(m=>m.ativo || m.id===selected).sort((a,b)=>a.nome.localeCompare(b.nome));
+  sel.innerHTML = list.length ? list.map(m=>`<option value="${m.id}">${esc(m.nome)}</option>`).join('') : '<option value="">Nenhuma máquina cadastrada</option>';
+  if (selected) sel.value = selected;
+}
+function openMaquinaQuick(){
+  document.getElementById('mqNome').value = '';
+  document.getElementById('mqTipo').value = '';
+  openModal('ovMaquinaQuick');
+}
+async function saveMaquinaQuick(){
+  const nome = document.getElementById('mqNome').value.trim();
+  const tipo = document.getElementById('mqTipo').value || null;
+  if (!nome){ alert('Informe o nome/identificação da máquina.'); return; }
+  const { data, error } = await sb.from('faz_maquinarios').insert({ nome, tipo }).select();
+  if (error){ alert('Erro ao cadastrar máquina: '+error.message); return; }
+  const { data: list } = await sb.from('faz_maquinarios').select('*').order('nome');
+  D.maquinarios = list || [];
+  closeModal('ovMaquinaQuick');
+  fillMaquinaSelect(data[0].id);
 }
 function openDespesaModal(id){
   if (!id && needSafra()) return;
@@ -1003,7 +1093,7 @@ function openDespesaModal(id){
   document.getElementById('dsData').value = d.data || d.data_vencimento || new Date().toISOString().slice(0,10);
   const cat = d.categoria_id ? D.categorias.find(c=>c.id===d.categoria_id) : null;
   document.getElementById('dsCategoriaGrupo').value = (cat && cat.tipo_financeiro) || 'Despesa';
-  onDsCategoriaChange(d.categoria_id, d.subcategoria_id);
+  onDsCategoriaChange(d.categoria_id, d.subcategoria_id, d.maquinario_id);
   document.getElementById('dsTipo').value = d.tipo_fixo_variavel || 'variavel';
   fillFazendaSelectSafra('dsFazenda', d.fazenda_id);
   document.getElementById('dsDescricao').value = d.descricao || '';
@@ -1021,6 +1111,7 @@ async function saveDespesa(){
   const categoria_id = document.getElementById('dsCategoria').value || null;
   const subcategoria_id = document.getElementById('dsSubcategoria').value || null;
   const grupo = document.getElementById('dsCategoriaGrupo').value;
+  const cat = D.categorias.find(c=>c.id===categoria_id);
   const tipo_fixo_variavel = grupo==='Despesa' ? document.getElementById('dsTipo').value : null;
   const fazenda_id = document.getElementById('dsFazenda').value;
   const descricao = document.getElementById('dsDescricao').value.trim();
@@ -1039,10 +1130,16 @@ async function saveDespesa(){
   if (!qtd || !valorUn){ alert('Informe quantidade e valor unitário.'); return; }
   if (!conta_id){ alert('Selecione a conta de pagamento.'); return; }
 
+  let maquinario_id = null;
+  if (cat && cat.nome === 'Manutenção de máquinas'){
+    maquinario_id = document.getElementById('dsMaquina').value || null;
+    if (!maquinario_id){ alert('Selecione qual máquina é a manutenção.'); return; }
+  }
+
   const payload = {
     tipo:'despesa', data, categoria_id, subcategoria_id, tipo_fixo_variavel,
     fazenda_id, descricao, quantidade: qtd, valor_unitario: valorUn, valor_total,
-    pessoa_id, conta_id, numero_nota, data_vencimento,
+    pessoa_id, conta_id, numero_nota, data_vencimento, maquinario_id,
     safra_id: D.safraAtual, updated_at: new Date().toISOString()
   };
   if (id) await sb.from('faz_lancamentos').update(payload).eq('id', id);
@@ -1518,6 +1615,7 @@ function renderCadastrosShell(){
       <button class="subnavBtn ${D.cadastroSub==='fazendas'?'active':''}" onclick="goCadastroSub('fazendas')">Fazendas</button>
       <button class="subnavBtn ${D.cadastroSub==='safras'?'active':''}" onclick="goCadastroSub('safras')">Safras</button>
       <button class="subnavBtn ${D.cadastroSub==='talhoes'?'active':''}" onclick="goCadastroSub('talhoes')">Talhões</button>
+      <button class="subnavBtn ${D.cadastroSub==='maquinarios'?'active':''}" onclick="goCadastroSub('maquinarios')">Maquinários</button>
       <button class="subnavBtn ${D.cadastroSub==='pessoas'?'active':''}" onclick="goCadastroSub('pessoas')">Pessoas e empresas</button>
       <button class="subnavBtn ${D.cadastroSub==='contas'?'active':''}" onclick="goCadastroSub('contas')">Contas</button>
       <button class="subnavBtn ${D.cadastroSub==='categorias'?'active':''}" onclick="goCadastroSub('categorias')">Categorias</button>
@@ -1530,6 +1628,7 @@ async function renderCadastros(){
   if (D.cadastroSub==='fazendas') c.innerHTML = tplCadastroFazendas();
   if (D.cadastroSub==='safras') c.innerHTML = tplCadastroSafras();
   if (D.cadastroSub==='talhoes') c.innerHTML = tplCadastroTalhoes();
+  if (D.cadastroSub==='maquinarios') c.innerHTML = tplCadastroMaquinarios();
   if (D.cadastroSub==='pessoas') c.innerHTML = tplCadastroPessoas();
   if (D.cadastroSub==='categorias') c.innerHTML = tplCadastroCategorias();
   if (D.cadastroSub==='contas'){
@@ -1742,6 +1841,73 @@ async function deleteTalhaoCad(id){
   if (!confirm('Excluir definitivamente este talhão? Isso só é possível se ele não estiver vinculado a nenhuma produção.')) return;
   const ok = await tryDelete('faz_talhoes', id);
   if (ok){ await loadBase(); goCadastroSub('talhoes'); }
+}
+
+// ---------- Cadastro: Maquinários ----------
+function tplCadastroMaquinarios(){
+  return `
+    <div class="card">
+      <div class="cardHead"><h3>Maquinários</h3><button class="btn small" onclick="openMaquinarioModal()">+ Novo maquinário</button></div>
+      ${D.maquinarios.length ? `<table><thead><tr><th>Nome</th><th>Tipo</th><th>Marca/Modelo</th><th>Fazenda</th><th>Status</th><th></th></tr></thead><tbody>
+        ${D.maquinarios.map(m=>`<tr>
+          <td><b>${esc(m.nome)}</b>${m.identificacao?` <span style="color:var(--muted); font-size:11.5px;">(${esc(m.identificacao)})</span>`:''}</td>
+          <td>${esc(m.tipo||'—')}</td>
+          <td>${esc([m.marca,m.modelo].filter(Boolean).join(' ')||'—')}</td>
+          <td>${esc(D.fazendas.find(f=>f.id===m.fazenda_id)?.nome || '—')}</td>
+          <td><span class="badge ${m.ativo?'entregue':'pendente'}">${m.ativo?'Ativo':'Inativo'}</span></td>
+          <td>
+            <button class="iconBtn" onclick="openMaquinarioModal('${m.id}')">Editar</button>
+            <button class="iconBtn" onclick="toggleMaquinarioAtivo('${m.id}', ${!!m.ativo})">${m.ativo?'Inativar':'Ativar'}</button>
+            <button class="iconBtn" onclick="deleteMaquinarioCad('${m.id}')">Excluir</button>
+          </td>
+        </tr>`).join('')}</tbody></table>`
+        : `<div class="empty"><b>Nenhum maquinário cadastrado</b>Cadastre tratores, colheitadeiras e implementos aqui.</div>`}
+    </div>`;
+}
+function openMaquinarioModal(id){
+  document.getElementById('mqId').value = id||'';
+  document.getElementById('mqModalTitle').textContent = id ? 'Editar Maquinário' : 'Novo Maquinário';
+  const m = D.maquinarios.find(x=>x.id===id) || {};
+  document.getElementById('mqNomeFull').value = m.nome||'';
+  document.getElementById('mqTipoFull').value = m.tipo||'';
+  const sel = document.getElementById('mqFazenda');
+  sel.innerHTML = '<option value="">Sem fazenda específica</option>' + D.fazendas.map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join('');
+  sel.value = m.fazenda_id||'';
+  document.getElementById('mqMarca').value = m.marca||'';
+  document.getElementById('mqModelo').value = m.modelo||'';
+  document.getElementById('mqAno').value = m.ano||'';
+  document.getElementById('mqIdentificacao').value = m.identificacao||'';
+  document.getElementById('mqObservacoes').value = m.observacoes||'';
+  openModal('ovMaquinario');
+}
+async function saveMaquinario(){
+  const id = document.getElementById('mqId').value;
+  const payload = {
+    nome: document.getElementById('mqNomeFull').value.trim(),
+    tipo: document.getElementById('mqTipoFull').value || null,
+    fazenda_id: document.getElementById('mqFazenda').value || null,
+    marca: document.getElementById('mqMarca').value.trim(),
+    modelo: document.getElementById('mqModelo').value.trim(),
+    ano: document.getElementById('mqAno').value ? Number(document.getElementById('mqAno').value) : null,
+    identificacao: document.getElementById('mqIdentificacao').value.trim(),
+    observacoes: document.getElementById('mqObservacoes').value.trim(),
+    updated_at: new Date().toISOString()
+  };
+  if (!payload.nome){ alert('Informe o nome/identificação da máquina.'); return; }
+  if (id) await sb.from('faz_maquinarios').update(payload).eq('id', id);
+  else await sb.from('faz_maquinarios').insert(payload);
+  closeModal('ovMaquinario');
+  await loadBase();
+  goCadastroSub('maquinarios');
+}
+async function toggleMaquinarioAtivo(id, current){
+  await sb.from('faz_maquinarios').update({ ativo: !current, updated_at:new Date().toISOString() }).eq('id', id);
+  await loadBase(); goCadastroSub('maquinarios');
+}
+async function deleteMaquinarioCad(id){
+  if (!confirm('Excluir definitivamente este maquinário? Isso só é possível se ele não estiver vinculado a nenhuma despesa.')) return;
+  const ok = await tryDelete('faz_maquinarios', id);
+  if (ok){ await loadBase(); goCadastroSub('maquinarios'); }
 }
 
 // ---------- Cadastro: Pessoas ----------
