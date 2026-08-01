@@ -155,6 +155,7 @@ tr:last-child td{border-bottom:none;}
     <div class="navItem active" data-tab="dashboard" onclick="goTab('dashboard')">📊 Dashboard</div>
     <div class="navItem" data-tab="lancamentos" onclick="goTab('lancamentos')">💱 Lançamentos</div>
     <div class="navItem" data-tab="producao" onclick="goTab('producao')">🌽 Produção</div>
+    <div class="navItem" data-tab="planejamento" onclick="goTab('planejamento')">🎯 Planejamento</div>
     <div class="navItem" data-tab="contratos" onclick="goTab('contratos')">📄 Contratos</div>
     <div class="navItem" data-tab="cadastros" onclick="goTab('cadastros')">🗂️ Cadastros</div>
     <button class="logout" onclick="doLogout()">← Sair</button>
@@ -178,6 +179,7 @@ tr:last-child td{border-bottom:none;}
     <div id="tab-dashboard" class="tabPane"></div>
     <div id="tab-lancamentos" class="tabPane" style="display:none"></div>
     <div id="tab-producao" class="tabPane" style="display:none"></div>
+    <div id="tab-planejamento" class="tabPane" style="display:none"></div>
     <div id="tab-contratos" class="tabPane" style="display:none"></div>
     <div id="tab-cadastros" class="tabPane" style="display:none"></div>
   </div>
@@ -571,6 +573,32 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div></div>
 
+<div class="overlay" id="ovPlanejamentoDespesa"><div class="modal">
+  <h3 id="pdModalTitle">Adicionar Categoria ao Orçamento</h3>
+  <input type="hidden" id="pdId">
+  <div class="field"><label>Categoria</label><select id="pdCategoria"></select></div>
+  <div class="field"><label>Valor planejado (R$)</label><input id="pdValor" type="number" step="0.01"></div>
+  <div class="field"><label>Observações (opcional)</label><input id="pdObservacoes" placeholder="Observações"></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovPlanejamentoDespesa')">Cancelar</button>
+    <button class="btn" onclick="savePlanejamentoDespesa()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="ovPlanejamentoVenda"><div class="modal" style="width:420px">
+  <h3 id="pvModalTitle">Cenário</h3>
+  <input type="hidden" id="pvId">
+  <div class="grid2">
+    <div class="field"><label>Sacas previstas</label><input id="pvQtd" type="number" step="0.01"></div>
+    <div class="field"><label>Preço previsto (R$/sc)</label><input id="pvPreco" type="number" step="0.01"></div>
+  </div>
+  <div class="field"><label>Observações (opcional)</label><input id="pvObservacoes" placeholder="Premissas do cenário"></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovPlanejamentoVenda')">Cancelar</button>
+    <button class="btn" onclick="savePlanejamentoVenda()">Salvar</button>
+  </div>
+</div></div>
+
 <div class="overlay" id="ovContrato"><div class="modal">
   <h3 id="ctModalTitle">Novo Contrato</h3>
   <input type="hidden" id="ctId">
@@ -605,8 +633,8 @@ const sb = supabase.createClient(SB_URL, SB_KEY);
 // ================= STATE =================
 let D = {
   fazendas:[], safras:[], safraFazendas:{}, contas:[], pessoas:[], categorias:[], subcategorias:[], talhoes:[], maquinarios:[],
-  lancamentos:[], contratos:[], producao:[],
-  safraAtual:null, fazendaFiltro:'', currentTab:'dashboard', cadastroSub:'fazendas', categoriaSearch:''
+  lancamentos:[], contratos:[], producao:[], planejamentoDespesas:[], planejamentoVendas:[],
+  safraAtual:null, fazendaFiltro:'', currentTab:'dashboard', cadastroSub:'fazendas', categoriaSearch:'', planejamentoSub:'custos'
 };
 let LF = { tipo:'todos', categoria:'todas', fazenda:'', conta:'', dataIni:'', dataFim:'' };
 let PF = { fazenda:'', talhao:'', pessoa:'', dataIni:'', dataFim:'', ordenar:'data_desc' };
@@ -757,16 +785,20 @@ function needSafra(){
 // ================= DADOS ESCOPADOS PELA SAFRA =================
 async function reloadSafraScopedData(){
   if (D.safraAtual){
-    const [lc, ct, pr] = await Promise.all([
+    const [lc, ct, pr, pd, pv] = await Promise.all([
       sb.from('faz_lancamentos').select('*').eq('safra_id', D.safraAtual).order('data',{ascending:false}),
       sb.from('faz_contratos').select('*').eq('safra_id', D.safraAtual).order('created_at',{ascending:false}),
-      sb.from('faz_producao').select('*').eq('safra_id', D.safraAtual).order('data',{ascending:false})
+      sb.from('faz_producao').select('*').eq('safra_id', D.safraAtual).order('data',{ascending:false}),
+      sb.from('faz_planejamento_despesas').select('*').eq('safra_id', D.safraAtual),
+      sb.from('faz_planejamento_vendas').select('*').eq('safra_id', D.safraAtual)
     ]);
     D.lancamentos = lc.data || [];
     D.contratos = ct.data || [];
     D.producao = pr.data || [];
+    D.planejamentoDespesas = pd.data || [];
+    D.planejamentoVendas = pv.data || [];
   } else {
-    D.lancamentos = []; D.contratos = []; D.producao = [];
+    D.lancamentos = []; D.contratos = []; D.producao = []; D.planejamentoDespesas = []; D.planejamentoVendas = [];
   }
   await renderCurrentTab();
 }
@@ -783,6 +815,7 @@ async function renderCurrentTab(){
   if (D.currentTab==='dashboard') renderDashboard();
   if (D.currentTab==='lancamentos') renderLancamentos();
   if (D.currentTab==='producao') renderProducao();
+  if (D.currentTab==='planejamento') await renderPlanejamento();
   if (D.currentTab==='contratos') renderContratos();
   if (D.currentTab==='cadastros') await renderCadastros();
 }
@@ -826,6 +859,23 @@ function fillSubcategoriaSelect(elId, categoriaId, currentId){
 // ================= DASHBOARD =================
 function fmtPct(v){ return v==null ? '—' : v.toFixed(1)+'%'; }
 function fmtSacasDash(v){ return v==null ? '—' : fmtSacas(v); }
+function getTotalHaSafra(){
+  let fazendasDaSafra = getFazendasDaSafra(D.safraAtual);
+  if (D.fazendaFiltro) fazendasDaSafra = fazendasDaSafra.filter(f=>f.id===D.fazendaFiltro);
+  return fazendasDaSafra.reduce((a,b)=>a+Number(b.ha||0),0);
+}
+function tplBarComparativo(items){
+  const max = Math.max(1, ...items.map(i=>Number(i.val)||0));
+  return items.map(i=>`
+    <div style="margin-bottom:14px;">
+      <div style="display:flex; justify-content:space-between; font-size:12.5px; color:var(--muted); margin-bottom:4px;">
+        <span>${esc(i.label)}</span><span><b>${fmtSacas(i.val)}</b></span>
+      </div>
+      <div style="background:var(--creme); border-radius:8px; height:14px; overflow:hidden;">
+        <div style="background:var(--terracota); height:100%; width:${((Number(i.val)||0)/max*100).toFixed(1)}%;"></div>
+      </div>
+    </div>`).join('');
+}
 function calcDashboardMetrics(despesasF, receitasF){
   // Faturamento amplo (toda receita, qualquer tipo financeiro) — base do "% do faturado"
   const totalReceitaValor = receitasF.reduce((a,b)=>a+Number(b.valor_total||0),0);
@@ -909,6 +959,13 @@ function renderDashboard(){
   const m = calcDashboardMetrics(despesasF, receitasF);
   const saldo = m.totalReceitaValor - totalDespesasPago;
 
+  const totalHa = getTotalHaSafra();
+  const custoPorHa = totalHa>0 ? m.custoHoje/totalHa : null;
+  const custoPorSacaProduzida = totalProducao>0 ? m.custoHoje/totalProducao : null;
+  const margemPorSaca = (custoPorSacaProduzida!=null && m.precoMedio>0) ? m.precoMedio - custoPorSacaProduzida : null;
+  const rentabilidadePct = m.custoHoje>0 ? ((m.totalReceitaValor - m.custoHoje)/m.custoHoje*100) : null;
+  const totalContratadoQtd = D.contratos.reduce((a,b)=>a+Number(b.quantidade||0),0);
+
   el.innerHTML = `
     <div class="pageTitle">Dashboard</div>
     <div class="pageDesc">Visão completa da safra selecionada${D.fazendaFiltro ? ' · filtrado por fazenda' : ''}</div>
@@ -920,6 +977,27 @@ function renderDashboard(){
       <div class="kpi"><div class="lbl">Despesas totais (custo)</div><div class="val orange">${fmtBRL(m.valorTotalDesp)}</div></div>
       <div class="kpi"><div class="lbl">Saldo (receita - pago)</div><div class="val ${saldo<0?'red':''}">${fmtBRL(saldo)}</div></div>
       <div class="kpi"><div class="lbl">Produção líquida</div><div class="val">${fmtSacas(totalProducao)}</div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="cardHead"><h3>Indicadores de eficiência</h3></div>
+        <div class="kpis">
+          <div class="kpi"><div class="lbl">Custo por hectare</div><div class="val">${custoPorHa!=null?fmtBRL(custoPorHa)+'/ha':'—'}</div></div>
+          <div class="kpi"><div class="lbl">Custo por saca produzida</div><div class="val">${custoPorSacaProduzida!=null?fmtBRL(custoPorSacaProduzida)+'/sc':'—'}</div></div>
+          <div class="kpi"><div class="lbl">Margem por saca</div><div class="val ${margemPorSaca!=null && margemPorSaca<0?'red':''}">${margemPorSaca!=null?fmtBRL(margemPorSaca)+'/sc':'—'}</div></div>
+          <div class="kpi"><div class="lbl">Rentabilidade da safra</div><div class="val ${rentabilidadePct!=null && rentabilidadePct<0?'red':''}">${fmtPct(rentabilidadePct)}</div></div>
+        </div>
+        ${totalHa<=0 ? `<div class="pageDesc" style="margin-top:8px;">Cadastre a área (HA) da fazenda para calcular o custo por hectare.</div>` : ''}
+      </div>
+      <div class="card">
+        <div class="cardHead"><h3>Produzido × Vendido × Contratado</h3></div>
+        ${tplBarComparativo([
+          {label:'Produzido', val: totalProducao},
+          {label:'Vendido', val: m.totalQtdProduto},
+          {label:'Contratado', val: totalContratadoQtd}
+        ])}
+      </div>
     </div>
 
     <div class="grid2">
@@ -1668,6 +1746,188 @@ async function deleteProducao(id){
   await sb.from('faz_producao').delete().eq('id', id);
   await reloadSafraScopedData();
   goTab('producao');
+}
+
+// ================= PLANEJAMENTO =================
+async function goPlanejamentoSub(sub){
+  D.planejamentoSub = sub;
+  await renderPlanejamento();
+}
+async function renderPlanejamento(){
+  const el = document.getElementById('tab-planejamento');
+  if (!D.safraAtual){ el.innerHTML = noSafraMsg(); return; }
+  el.innerHTML = `
+    <div class="pageTitle">Planejamento</div>
+    <div class="pageDesc">Planejado × realizado e cenários de venda da safra selecionada</div>
+    <div class="subnav">
+      <button class="subnavBtn ${D.planejamentoSub==='custos'?'active':''}" onclick="goPlanejamentoSub('custos')">Custos (planejado × realizado)</button>
+      <button class="subnavBtn ${D.planejamentoSub==='vendas'?'active':''}" onclick="goPlanejamentoSub('vendas')">Cenários de venda</button>
+    </div>
+    <div id="planejamentoContent"></div>`;
+  const c = document.getElementById('planejamentoContent');
+  if (D.planejamentoSub==='custos'){
+    c.innerHTML = tplPlanejamentoCustos();
+  } else {
+    c.innerHTML = `<div class="empty">Carregando cenários...</div>`;
+    await ensureCenariosVenda();
+    c.innerHTML = tplPlanejamentoVendas();
+  }
+}
+
+// ---------- Planejamento: Custos (orçamento por categoria) ----------
+function tplPlanejamentoCustos(){
+  const despesasF = filterByFazendaGlobal(D.lancamentos.filter(l=>l.tipo==='despesa'));
+  const rows = D.planejamentoDespesas.map(p=>{
+    const realizado = despesasF.filter(d=>d.categoria_id===p.categoria_id).reduce((a,b)=>a+Number(b.valor_total||0),0);
+    const pago = despesasF.filter(d=>d.categoria_id===p.categoria_id && d.status==='pago').reduce((a,b)=>a+Number(b.valor_total||0),0);
+    const pctExec = p.valor_planejado>0 ? (realizado/p.valor_planejado*100) : null;
+    const saldo = Number(p.valor_planejado||0) - realizado;
+    return { p, realizado, pago, pctExec, saldo };
+  }).sort((a,b)=>Number(b.p.valor_planejado||0)-Number(a.p.valor_planejado||0));
+
+  const totalPlanejado = rows.reduce((a,b)=>a+Number(b.p.valor_planejado||0),0);
+  const totalRealizado = rows.reduce((a,b)=>a+b.realizado,0);
+  const totalPago = rows.reduce((a,b)=>a+b.pago,0);
+  const totalSaldo = totalPlanejado - totalRealizado;
+  const totalPct = totalPlanejado>0 ? (totalRealizado/totalPlanejado*100) : null;
+
+  return `
+    <div class="kpis">
+      <div class="kpi"><div class="lbl">Total planejado</div><div class="val">${fmtBRL(totalPlanejado)}</div></div>
+      <div class="kpi"><div class="lbl">Total lançado</div><div class="val">${fmtBRL(totalRealizado)}</div></div>
+      <div class="kpi"><div class="lbl">Total pago</div><div class="val">${fmtBRL(totalPago)}</div></div>
+      <div class="kpi"><div class="lbl">Saldo do orçamento</div><div class="val ${totalSaldo<0?'red':''}">${fmtBRL(totalSaldo)}</div></div>
+    </div>
+    <div class="card">
+      <div class="cardHead"><h3>Orçamento por categoria</h3><button class="btn small" onclick="openPlanejamentoDespesaModal()">+ Adicionar categoria</button></div>
+      ${rows.length ? `<table><thead><tr><th>Categoria</th><th>Planejado</th><th>Lançado</th><th>Pago</th><th>% executado</th><th>Saldo</th><th></th></tr></thead><tbody>
+        ${rows.map(r=>`<tr>
+          <td>${esc(categoriaNome(r.p.categoria_id))}</td>
+          <td>${fmtBRL(r.p.valor_planejado)}</td>
+          <td>${fmtBRL(r.realizado)}</td>
+          <td>${fmtBRL(r.pago)}</td>
+          <td style="${r.pctExec!=null && r.pctExec>100 ? 'color:var(--vermelho); font-weight:600;':''}">${fmtPct(r.pctExec)}</td>
+          <td style="${r.saldo<0?'color:var(--vermelho); font-weight:600;':''}">${fmtBRL(r.saldo)}</td>
+          <td><button class="iconBtn" onclick="openPlanejamentoDespesaModal('${r.p.id}')">Editar</button><button class="iconBtn" onclick="deletePlanejamentoDespesa('${r.p.id}')">Remover</button></td>
+        </tr>`).join('')}
+        <tr style="font-weight:700; color:var(--verde2);">
+          <td>Total</td><td>${fmtBRL(totalPlanejado)}</td><td>${fmtBRL(totalRealizado)}</td><td>${fmtBRL(totalPago)}</td><td>${fmtPct(totalPct)}</td><td>${fmtBRL(totalSaldo)}</td><td></td>
+        </tr>
+      </tbody></table>` : `<div class="empty"><b>Nenhum orçamento definido</b>Adicione categorias e defina quanto pretende gastar em cada uma nesta safra.</div>`}
+    </div>`;
+}
+function openPlanejamentoDespesaModal(id){
+  if (!id && needSafra()) return;
+  const p = D.planejamentoDespesas.find(x=>x.id===id) || {};
+  document.getElementById('pdId').value = id||'';
+  document.getElementById('pdModalTitle').textContent = id ? 'Editar Orçamento' : 'Adicionar Categoria ao Orçamento';
+  const jaPlanejadas = new Set(D.planejamentoDespesas.filter(x=>x.id!==id).map(x=>x.categoria_id));
+  const opcoes = D.categorias.filter(c=>
+    ['Despesa','Investimento','Financiamento'].includes(c.tipo_financeiro) &&
+    (c.aplicavel_em==='saida' || c.aplicavel_em==='ambas') &&
+    (c.ativo || c.id===p.categoria_id) &&
+    !jaPlanejadas.has(c.id)
+  );
+  const sel = document.getElementById('pdCategoria');
+  sel.innerHTML = opcoes.length ? opcoes.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('') : '<option value="">Todas as categorias já estão no orçamento</option>';
+  if (p.categoria_id) sel.value = p.categoria_id;
+  document.getElementById('pdValor').value = p.valor_planejado || '';
+  document.getElementById('pdObservacoes').value = p.observacoes || '';
+  openModal('ovPlanejamentoDespesa');
+}
+async function savePlanejamentoDespesa(){
+  const id = document.getElementById('pdId').value;
+  const categoria_id = document.getElementById('pdCategoria').value;
+  const valor_planejado = Number(document.getElementById('pdValor').value)||0;
+  const observacoes = document.getElementById('pdObservacoes').value.trim();
+  if (!categoria_id){ alert('Selecione uma categoria.'); return; }
+  const payload = { safra_id: D.safraAtual, categoria_id, valor_planejado, observacoes, updated_at: new Date().toISOString() };
+  let res;
+  if (id) res = await sb.from('faz_planejamento_despesas').update(payload).eq('id', id);
+  else res = await sb.from('faz_planejamento_despesas').insert(payload);
+  if (res.error){
+    if (res.error.code === '23505') alert('Essa categoria já está no orçamento desta safra.');
+    else alert('Erro ao salvar: '+res.error.message);
+    return;
+  }
+  closeModal('ovPlanejamentoDespesa');
+  await reloadSafraScopedData();
+  goTab('planejamento');
+}
+async function deletePlanejamentoDespesa(id){
+  if (!confirm('Remover esta categoria do orçamento desta safra?')) return;
+  await sb.from('faz_planejamento_despesas').delete().eq('id', id);
+  await reloadSafraScopedData();
+  goTab('planejamento');
+}
+
+// ---------- Planejamento: Cenários de venda ----------
+async function ensureCenariosVenda(){
+  if (!D.safraAtual) return;
+  const existentes = new Set(D.planejamentoVendas.map(v=>v.cenario));
+  const faltando = ['pessimista','realista','otimista'].filter(c=>!existentes.has(c));
+  if (faltando.length){
+    const rows = faltando.map(c=>({ safra_id: D.safraAtual, cenario: c, quantidade_sacas: 0, preco_unitario: 0 }));
+    await sb.from('faz_planejamento_vendas').insert(rows);
+    const { data } = await sb.from('faz_planejamento_vendas').select('*').eq('safra_id', D.safraAtual);
+    D.planejamentoVendas = data || [];
+  }
+}
+function tplPlanejamentoVendas(){
+  const despesasF = filterByFazendaGlobal(D.lancamentos.filter(l=>l.tipo==='despesa'));
+  const receitasF = filterByFazendaGlobal(D.lancamentos.filter(l=>l.tipo==='receita'));
+  const m = calcDashboardMetrics(despesasF, receitasF);
+  const ordem = { pessimista:0, realista:1, otimista:2 };
+  const labels = { pessimista:'Pessimista', realista:'Realista', otimista:'Otimista' };
+  const linhas = [...D.planejamentoVendas].sort((a,b)=>ordem[a.cenario]-ordem[b.cenario]);
+  return `
+    <div class="card">
+      <div class="cardHead"><h3>Cenários de venda</h3></div>
+      <div class="pageDesc" style="margin-bottom:14px;">Compare quanto a safra pode render em cada cenário de produção e preço, frente ao custo de produção já lançado.</div>
+      <table><thead><tr><th>Cenário</th><th>Sacas previstas</th><th>Preço previsto</th><th>Receita projetada</th><th>Margem vs custo hoje</th><th>Margem vs custo projetado</th><th></th></tr></thead><tbody>
+        ${linhas.map(v=>{
+          const receita = Number(v.quantidade_sacas||0) * Number(v.preco_unitario||0);
+          const margemHoje = receita - m.custoHoje;
+          const margemProj = receita - m.custoProjetado;
+          return `<tr>
+            <td><b>${labels[v.cenario]}</b></td>
+            <td>${fmtSacas(v.quantidade_sacas)}</td>
+            <td>${fmtBRL(v.preco_unitario)}/sc</td>
+            <td>${fmtBRL(receita)}</td>
+            <td style="${margemHoje<0?'color:var(--vermelho); font-weight:600;':'color:var(--pago); font-weight:600;'}">${fmtBRL(margemHoje)}</td>
+            <td style="${margemProj<0?'color:var(--vermelho); font-weight:600;':'color:var(--pago); font-weight:600;'}">${fmtBRL(margemProj)}</td>
+            <td><button class="iconBtn" onclick="openPlanejamentoVendaModal('${v.id}')">Editar</button></td>
+          </tr>`;
+        }).join('')}
+        <tr style="background:var(--creme2)">
+          <td><b>Realizado até agora</b></td>
+          <td>${fmtSacas(m.totalQtdProduto)}</td>
+          <td>${m.precoMedio>0?fmtBRL(m.precoMedio)+'/sc':'—'}</td>
+          <td>${fmtBRL(m.totalReceitaValor)}</td>
+          <td colspan="2" style="color:var(--muted)">Referência real, não editável</td>
+        </tr>
+      </tbody></table>
+    </div>`;
+}
+function openPlanejamentoVendaModal(id){
+  const v = D.planejamentoVendas.find(x=>x.id===id) || {};
+  const labels = { pessimista:'Cenário Pessimista', realista:'Cenário Realista', otimista:'Cenário Otimista' };
+  document.getElementById('pvId').value = id||'';
+  document.getElementById('pvModalTitle').textContent = labels[v.cenario] || 'Cenário';
+  document.getElementById('pvQtd').value = v.quantidade_sacas || '';
+  document.getElementById('pvPreco').value = v.preco_unitario || '';
+  document.getElementById('pvObservacoes').value = v.observacoes || '';
+  openModal('ovPlanejamentoVenda');
+}
+async function savePlanejamentoVenda(){
+  const id = document.getElementById('pvId').value;
+  const quantidade_sacas = Number(document.getElementById('pvQtd').value)||0;
+  const preco_unitario = Number(document.getElementById('pvPreco').value)||0;
+  const observacoes = document.getElementById('pvObservacoes').value.trim();
+  await sb.from('faz_planejamento_vendas').update({ quantidade_sacas, preco_unitario, observacoes, updated_at: new Date().toISOString() }).eq('id', id);
+  closeModal('ovPlanejamentoVenda');
+  await reloadSafraScopedData();
+  goTab('planejamento');
 }
 
 // ================= CONTRATOS =================
