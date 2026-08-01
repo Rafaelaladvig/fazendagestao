@@ -154,6 +154,7 @@ tr:last-child td{border-bottom:none;}
     <div class="sub">Gestão Financeira</div>
     <div class="navItem active" data-tab="dashboard" onclick="goTab('dashboard')">📊 Dashboard</div>
     <div class="navItem" data-tab="lancamentos" onclick="goTab('lancamentos')">💱 Lançamentos</div>
+    <div class="navItem" data-tab="producao" onclick="goTab('producao')">🌽 Produção</div>
     <div class="navItem" data-tab="contratos" onclick="goTab('contratos')">📄 Contratos</div>
     <div class="navItem" data-tab="cadastros" onclick="goTab('cadastros')">🗂️ Cadastros</div>
     <button class="logout" onclick="doLogout()">← Sair</button>
@@ -176,6 +177,7 @@ tr:last-child td{border-bottom:none;}
 
     <div id="tab-dashboard" class="tabPane"></div>
     <div id="tab-lancamentos" class="tabPane" style="display:none"></div>
+    <div id="tab-producao" class="tabPane" style="display:none"></div>
     <div id="tab-contratos" class="tabPane" style="display:none"></div>
     <div id="tab-cadastros" class="tabPane" style="display:none"></div>
   </div>
@@ -456,6 +458,57 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div></div>
 
+<div class="overlay" id="ovProducao"><div class="modal">
+  <h3 id="prModalTitle">Nova Produção</h3>
+  <input type="hidden" id="prId">
+  <div class="field"><label>Data</label><input id="prData" type="date"></div>
+  <div class="field"><label>Fazenda</label><select id="prFazenda" onchange="onProdFazendaChange()"></select></div>
+  <div class="field">
+    <label>Talhão</label>
+    <div style="display:flex; gap:8px;">
+      <select id="prTalhao" style="flex:1"></select>
+      <button type="button" class="btn small secondary" style="width:auto" onclick="openTalhaoQuick()">+</button>
+    </div>
+  </div>
+  <div class="field"><label>Quantidade líquida (sacas)</label><input id="prQtd" type="number" step="0.01" min="0.01"></div>
+  <div class="field">
+    <label>Entregue para</label>
+    <div style="display:flex; gap:8px;">
+      <select id="prPessoa" style="flex:1"></select>
+      <button type="button" class="btn small secondary" style="width:auto" onclick="openPessoaQuick('producao')">+</button>
+    </div>
+  </div>
+  <div class="field"><label>Observações (opcional)</label><input id="prObservacoes" placeholder="Romaneio, carga, placa, umidade..."></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovProducao')">Cancelar</button>
+    <button class="btn" onclick="saveProducao()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="ovTalhaoQuick"><div class="modal" style="width:380px">
+  <h3>Novo Talhão</h3>
+  <input type="hidden" id="tqFazendaId">
+  <div class="field"><label>Nome/identificação</label><input id="tqNome" placeholder="Ex: Talhão 3"></div>
+  <div class="field"><label>Área em HA (opcional)</label><input id="tqArea" type="number" step="0.01"></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovTalhaoQuick')">Cancelar</button>
+    <button class="btn" onclick="saveTalhaoQuick()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="ovTalhao"><div class="modal">
+  <h3 id="tlModalTitle">Novo Talhão</h3>
+  <input type="hidden" id="tlId">
+  <div class="field"><label>Nome/identificação</label><input id="tlNome" placeholder="Ex: Talhão 3"></div>
+  <div class="field"><label>Fazenda</label><select id="tlFazenda"></select></div>
+  <div class="field"><label>Área em HA (opcional)</label><input id="tlArea" type="number" step="0.01"></div>
+  <div class="field"><label>Observações (opcional)</label><input id="tlObservacoes" placeholder="Observações"></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovTalhao')">Cancelar</button>
+    <button class="btn" onclick="saveTalhao()">Salvar</button>
+  </div>
+</div></div>
+
 <div class="overlay" id="ovContrato"><div class="modal">
   <h3 id="ctModalTitle">Novo Contrato</h3>
   <input type="hidden" id="ctId">
@@ -489,11 +542,12 @@ const sb = supabase.createClient(SB_URL, SB_KEY);
 
 // ================= STATE =================
 let D = {
-  fazendas:[], safras:[], safraFazendas:{}, contas:[], pessoas:[], categorias:[], subcategorias:[],
-  lancamentos:[], contratos:[],
+  fazendas:[], safras:[], safraFazendas:{}, contas:[], pessoas:[], categorias:[], subcategorias:[], talhoes:[],
+  lancamentos:[], contratos:[], producao:[],
   safraAtual:null, fazendaFiltro:'', currentTab:'dashboard', cadastroSub:'fazendas', categoriaSearch:''
 };
 let LF = { tipo:'todos', categoria:'todas', fazenda:'', conta:'', dataIni:'', dataFim:'' };
+let PF = { fazenda:'', talhao:'', pessoa:'', dataIni:'', dataFim:'', ordenar:'data_desc' };
 
 const fmtBRL = v => (Number(v)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const fmtDate = d => d ? new Date(d+'T00:00:00').toLocaleDateString('pt-BR') : '—';
@@ -555,14 +609,15 @@ async function tryDelete(table, id){
 
 // ================= LOAD BASE =================
 async function loadBase(){
-  const [fz, sf, ct, ps, cat, sub, sfz] = await Promise.all([
+  const [fz, sf, ct, ps, cat, sub, sfz, tl] = await Promise.all([
     sb.from('faz_fazendas').select('*').order('nome'),
     sb.from('faz_safras').select('*').order('created_at',{ascending:false}),
     sb.from('faz_contas').select('*').order('nome'),
     sb.from('faz_pessoas').select('*').order('nome'),
     sb.from('faz_categorias').select('*').order('ordem'),
     sb.from('faz_subcategorias').select('*').order('ordem'),
-    sb.from('faz_safra_fazendas').select('*')
+    sb.from('faz_safra_fazendas').select('*'),
+    sb.from('faz_talhoes').select('*').order('nome')
   ]);
   D.fazendas = fz.data || [];
   D.safras = sf.data || [];
@@ -570,6 +625,7 @@ async function loadBase(){
   D.pessoas = ps.data || [];
   D.categorias = cat.data || [];
   D.subcategorias = sub.data || [];
+  D.talhoes = tl.data || [];
   D.safraFazendas = {};
   (sfz.data || []).forEach(r=>{
     if (!D.safraFazendas[r.safra_id]) D.safraFazendas[r.safra_id] = [];
@@ -637,14 +693,16 @@ function needSafra(){
 // ================= DADOS ESCOPADOS PELA SAFRA =================
 async function reloadSafraScopedData(){
   if (D.safraAtual){
-    const [lc, ct] = await Promise.all([
+    const [lc, ct, pr] = await Promise.all([
       sb.from('faz_lancamentos').select('*').eq('safra_id', D.safraAtual).order('data',{ascending:false}),
-      sb.from('faz_contratos').select('*').eq('safra_id', D.safraAtual).order('created_at',{ascending:false})
+      sb.from('faz_contratos').select('*').eq('safra_id', D.safraAtual).order('created_at',{ascending:false}),
+      sb.from('faz_producao').select('*').eq('safra_id', D.safraAtual).order('data',{ascending:false})
     ]);
     D.lancamentos = lc.data || [];
     D.contratos = ct.data || [];
+    D.producao = pr.data || [];
   } else {
-    D.lancamentos = []; D.contratos = [];
+    D.lancamentos = []; D.contratos = []; D.producao = [];
   }
   await renderCurrentTab();
 }
@@ -660,6 +718,7 @@ async function goTab(tab){
 async function renderCurrentTab(){
   if (D.currentTab==='dashboard') renderDashboard();
   if (D.currentTab==='lancamentos') renderLancamentos();
+  if (D.currentTab==='producao') renderProducao();
   if (D.currentTab==='contratos') renderContratos();
   if (D.currentTab==='cadastros') await renderCadastros();
 }
@@ -711,6 +770,8 @@ function renderDashboard(){
   const totalReceitas = receitasF.reduce((a,b)=>a+Number(b.valor_total||0),0);
   const totalContratos = D.contratos.reduce((a,b)=>a+Number(b.valor_total||0),0);
   const saldo = totalReceitas - totalDespesasPago;
+  const producaoF = filterByFazendaGlobal(D.producao);
+  const totalProducao = producaoF.reduce((a,b)=>a+Number(b.quantidade_liquida_sacas||0),0);
   el.innerHTML = `
     <div class="pageTitle">Dashboard</div>
     <div class="pageDesc">${D.safraAtual ? 'Resumo da safra selecionada' + (D.fazendaFiltro ? ' · filtrado por fazenda' : '') : 'Selecione uma safra para ver os números'}</div>
@@ -719,6 +780,7 @@ function renderDashboard(){
       <div class="kpi"><div class="lbl">Despesas pagas</div><div class="val">${fmtBRL(totalDespesasPago)}</div></div>
       <div class="kpi"><div class="lbl">Despesas em aberto</div><div class="val orange">${fmtBRL(totalDespesasPend)}</div></div>
       <div class="kpi"><div class="lbl">Saldo (receita - pago)</div><div class="val ${saldo<0?'red':''}">${fmtBRL(saldo)}</div></div>
+      <div class="kpi"><div class="lbl">Produção líquida</div><div class="val">${fmtSacas(totalProducao)}</div></div>
       <div class="kpi"><div class="lbl">Contratos firmados</div><div class="val">${fmtBRL(totalContratos)}</div></div>
     </div>
     <div class="card">
@@ -892,7 +954,7 @@ function fillPessoaSelectReceita(selected){
 // ---------- cadastro rápido de pessoa (a partir dos formulários) ----------
 function openPessoaQuick(context){
   document.getElementById('pqContext').value = context;
-  document.getElementById('pqModalTitle').textContent = context==='despesa' ? 'Novo Fornecedor' : 'Novo Pagador/Cliente';
+  document.getElementById('pqModalTitle').textContent = context==='despesa' ? 'Novo Fornecedor' : context==='producao' ? 'Novo Destino/Comprador' : 'Novo Pagador/Cliente';
   document.getElementById('pqNome').value = '';
   document.getElementById('pqDocumento').value = '';
   openModal('ovPessoaQuick');
@@ -909,6 +971,7 @@ async function savePessoaQuick(){
   D.pessoas = list || [];
   closeModal('ovPessoaQuick');
   if (context==='despesa') fillPessoaSelectDespesa(data[0].id);
+  else if (context==='producao') fillPessoaSelectProducao(data[0].id);
   else fillPessoaSelectReceita(data[0].id);
 }
 
@@ -1145,6 +1208,229 @@ async function saveReceita(){
   goTab('lancamentos');
 }
 
+// ================= PRODUÇÃO =================
+function fmtSacas(v){ return (Number(v)||0).toLocaleString('pt-BR',{maximumFractionDigits:2}) + ' sc'; }
+function groupSum(list, key, valFn){
+  const out = {};
+  list.forEach(item=>{
+    const k = item[key];
+    if (!k) return;
+    out[k] = (out[k]||0) + Number(valFn(item)||0);
+  });
+  return out;
+}
+function tplGroupTable(groupObj, nameFn, total){
+  const entries = Object.entries(groupObj).sort((a,b)=>b[1]-a[1]);
+  if (!entries.length) return `<div class="empty">Sem dados.</div>`;
+  return `<table><thead><tr><th>Nome</th><th>Sacas</th><th>%</th></tr></thead><tbody>
+    ${entries.map(([id,val])=>{
+      const pct = total>0 ? ((val/total)*100).toFixed(1) : '0.0';
+      return `<tr><td>${esc(nameFn(id)||'—')}</td><td>${fmtSacas(val)}</td><td>${pct}%</td></tr>`;
+    }).join('')}
+  </tbody></table>`;
+}
+function renderProducao(){
+  const el = document.getElementById('tab-producao');
+  if (!D.safraAtual){ el.innerHTML = noSafraMsg(); return; }
+  const base = filterByFazendaGlobal(D.producao);
+  const filtered = applyProducaoFilters(base);
+  const totalSacas = filtered.reduce((a,b)=>a+Number(b.quantidade_liquida_sacas||0),0);
+  const porFazenda = groupSum(filtered, 'fazenda_id', p=>p.quantidade_liquida_sacas);
+  const porTalhao = groupSum(filtered, 'talhao_id', p=>p.quantidade_liquida_sacas);
+  const porPessoa = groupSum(filtered, 'pessoa_id', p=>p.quantidade_liquida_sacas);
+  const fazendasDaSafra = getFazendasDaSafra(D.safraAtual);
+  const talhoesDaSafra = D.talhoes.filter(t=>fazendasDaSafra.some(f=>f.id===t.fazenda_id));
+
+  el.innerHTML = `
+    <div class="pageTitle">Produção</div>
+    <div class="pageDesc">Registro físico da colheita da safra selecionada${D.fazendaFiltro ? ' · filtrado por fazenda' : ''}</div>
+    <div class="kpis">
+      <div class="kpi"><div class="lbl">Produção líquida total</div><div class="val">${fmtSacas(totalSacas)}</div></div>
+      <div class="kpi"><div class="lbl">Lançamentos</div><div class="val">${filtered.length}</div></div>
+      <div class="kpi"><div class="lbl">Fazendas com produção</div><div class="val">${Object.keys(porFazenda).length}</div></div>
+      <div class="kpi"><div class="lbl">Talhões colhidos</div><div class="val">${Object.keys(porTalhao).length}</div></div>
+    </div>
+    <div class="grid3">
+      <div class="card"><div class="cardHead"><h3>Por fazenda</h3></div>${tplGroupTable(porFazenda, id=>D.fazendas.find(f=>f.id===id)?.nome, totalSacas)}</div>
+      <div class="card"><div class="cardHead"><h3>Por talhão</h3></div>${tplGroupTable(porTalhao, id=>D.talhoes.find(t=>t.id===id)?.nome, totalSacas)}</div>
+      <div class="card"><div class="cardHead"><h3>Entregue para</h3></div>${tplGroupTable(porPessoa, id=>D.pessoas.find(p=>p.id===id)?.nome, totalSacas)}</div>
+    </div>
+    <div class="card">
+      <div class="cardHead"><h3>Filtros</h3><button class="btn small" onclick="openProducaoModal()">+ Produção</button></div>
+      <div class="filterBar">
+        <div class="grp"><label>Fazenda</label><select id="pfFazenda" onchange="onProducaoFilterChange()">
+          <option value="">Todas</option>${fazendasDaSafra.map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join('')}
+        </select></div>
+        <div class="grp"><label>Talhão</label><select id="pfTalhao" onchange="onProducaoFilterChange()">
+          <option value="">Todos</option>${talhoesDaSafra.map(t=>`<option value="${t.id}">${esc(t.nome)}</option>`).join('')}
+        </select></div>
+        <div class="grp"><label>Entregue para</label><select id="pfPessoa" onchange="onProducaoFilterChange()">
+          <option value="">Todos</option>${D.pessoas.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join('')}
+        </select></div>
+        <div class="grp"><label>De</label><input type="date" id="pfDataIni" onchange="onProducaoFilterChange()"></div>
+        <div class="grp"><label>Até</label><input type="date" id="pfDataFim" onchange="onProducaoFilterChange()"></div>
+        <div class="grp"><label>Ordenar por</label><select id="pfOrdenar" onchange="onProducaoFilterChange()">
+          <option value="data_desc">Data (mais recente)</option>
+          <option value="data_asc">Data (mais antiga)</option>
+          <option value="fazenda">Fazenda</option>
+          <option value="talhao">Talhão</option>
+          <option value="quantidade_desc">Quantidade (maior)</option>
+          <option value="quantidade_asc">Quantidade (menor)</option>
+        </select></div>
+        <button class="iconBtn" onclick="clearProducaoFilters()">Limpar filtros</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="cardHead"><h3>Lançamentos de produção (${filtered.length})</h3></div>
+      ${filtered.length ? `<table><thead><tr><th>Data</th><th>Fazenda</th><th>Talhão</th><th>Sacas</th><th>Entregue para</th><th>Observações</th><th></th></tr></thead><tbody>
+        ${filtered.map(p=>renderProducaoRow(p)).join('')}
+      </tbody></table>` : `<div class="empty"><b>Nenhum lançamento de produção</b>Registre a primeira colheita desta safra.</div>`}
+    </div>`;
+  setProducaoFilterValues();
+}
+function applyProducaoFilters(list){
+  let out = list.filter(p=>{
+    if (PF.fazenda && p.fazenda_id!==PF.fazenda) return false;
+    if (PF.talhao && p.talhao_id!==PF.talhao) return false;
+    if (PF.pessoa && p.pessoa_id!==PF.pessoa) return false;
+    if (PF.dataIni && (p.data||'') < PF.dataIni) return false;
+    if (PF.dataFim && (p.data||'') > PF.dataFim) return false;
+    return true;
+  });
+  const fazNome = id => D.fazendas.find(f=>f.id===id)?.nome || '';
+  const talNome = id => D.talhoes.find(t=>t.id===id)?.nome || '';
+  switch(PF.ordenar){
+    case 'data_asc': out.sort((a,b)=>(a.data||'').localeCompare(b.data||'')); break;
+    case 'fazenda': out.sort((a,b)=>fazNome(a.fazenda_id).localeCompare(fazNome(b.fazenda_id))); break;
+    case 'talhao': out.sort((a,b)=>talNome(a.talhao_id).localeCompare(talNome(b.talhao_id))); break;
+    case 'quantidade_desc': out.sort((a,b)=>Number(b.quantidade_liquida_sacas)-Number(a.quantidade_liquida_sacas)); break;
+    case 'quantidade_asc': out.sort((a,b)=>Number(a.quantidade_liquida_sacas)-Number(b.quantidade_liquida_sacas)); break;
+    default: out.sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  }
+  return out;
+}
+function onProducaoFilterChange(){
+  PF.fazenda = document.getElementById('pfFazenda').value;
+  PF.talhao = document.getElementById('pfTalhao').value;
+  PF.pessoa = document.getElementById('pfPessoa').value;
+  PF.dataIni = document.getElementById('pfDataIni').value;
+  PF.dataFim = document.getElementById('pfDataFim').value;
+  PF.ordenar = document.getElementById('pfOrdenar').value;
+  renderProducao();
+}
+function clearProducaoFilters(){
+  PF = { fazenda:'', talhao:'', pessoa:'', dataIni:'', dataFim:'', ordenar:'data_desc' };
+  renderProducao();
+}
+function setProducaoFilterValues(){
+  document.getElementById('pfFazenda').value = PF.fazenda;
+  document.getElementById('pfTalhao').value = PF.talhao;
+  document.getElementById('pfPessoa').value = PF.pessoa;
+  document.getElementById('pfDataIni').value = PF.dataIni;
+  document.getElementById('pfDataFim').value = PF.dataFim;
+  document.getElementById('pfOrdenar').value = PF.ordenar;
+}
+function renderProducaoRow(p){
+  const fazNome = D.fazendas.find(f=>f.id===p.fazenda_id)?.nome || '—';
+  const talNome = D.talhoes.find(t=>t.id===p.talhao_id)?.nome || '—';
+  const pesNome = D.pessoas.find(x=>x.id===p.pessoa_id)?.nome || '—';
+  return `<tr>
+    <td>${fmtDate(p.data)}</td>
+    <td>${esc(fazNome)}</td>
+    <td>${esc(talNome)}</td>
+    <td>${fmtSacas(p.quantidade_liquida_sacas)}</td>
+    <td>${esc(pesNome)}</td>
+    <td>${esc(p.observacoes||'—')}</td>
+    <td><button class="iconBtn" onclick="openProducaoModal('${p.id}')">Editar</button><button class="iconBtn" onclick="deleteProducao('${p.id}')">Excluir</button></td>
+  </tr>`;
+}
+function fillTalhaoSelectFazenda(fazendaId, selected){
+  const sel = document.getElementById('prTalhao');
+  const list = D.talhoes.filter(t=>t.fazenda_id===fazendaId && (t.ativo || t.id===selected)).sort((a,b)=>a.nome.localeCompare(b.nome));
+  sel.innerHTML = list.length ? list.map(t=>`<option value="${t.id}">${esc(t.nome)}</option>`).join('') : '<option value="">Nenhum talhão cadastrado</option>';
+  if (selected) sel.value = selected;
+}
+function onProdFazendaChange(){
+  const fazendaId = document.getElementById('prFazenda').value;
+  fillTalhaoSelectFazenda(fazendaId, null);
+}
+function openTalhaoQuick(){
+  const fazendaId = document.getElementById('prFazenda').value;
+  if (!fazendaId){ alert('Selecione a fazenda antes de cadastrar um talhão.'); return; }
+  document.getElementById('tqFazendaId').value = fazendaId;
+  document.getElementById('tqNome').value = '';
+  document.getElementById('tqArea').value = '';
+  openModal('ovTalhaoQuick');
+}
+async function saveTalhaoQuick(){
+  const fazenda_id = document.getElementById('tqFazendaId').value;
+  const nome = document.getElementById('tqNome').value.trim();
+  const area_ha = document.getElementById('tqArea').value ? Number(document.getElementById('tqArea').value) : null;
+  if (!nome){ alert('Informe o nome do talhão.'); return; }
+  const { data, error } = await sb.from('faz_talhoes').insert({ fazenda_id, nome, area_ha }).select();
+  if (error){ alert('Erro ao cadastrar talhão: '+error.message); return; }
+  const { data: list } = await sb.from('faz_talhoes').select('*').order('nome');
+  D.talhoes = list || [];
+  closeModal('ovTalhaoQuick');
+  fillTalhaoSelectFazenda(fazenda_id, data[0].id);
+}
+function fillPessoaSelectProducao(selected){
+  const sel = document.getElementById('prPessoa');
+  const list = D.pessoas.filter(p=>(p.tipo_relacionamento==='pagador'||p.tipo_relacionamento==='ambos') && (p.ativo || p.id===selected));
+  sel.innerHTML = '<option value="">Selecione</option>' + list.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join('');
+  sel.value = selected || '';
+}
+function openProducaoModal(id){
+  if (!id && needSafra()) return;
+  document.getElementById('prId').value = id||'';
+  document.getElementById('prModalTitle').textContent = id ? 'Editar Produção' : 'Nova Produção';
+  const p = D.producao.find(x=>x.id===id) || {};
+  document.getElementById('prData').value = p.data || new Date().toISOString().slice(0,10);
+  fillFazendaSelectSafra('prFazenda', p.fazenda_id);
+  const fazendaId = document.getElementById('prFazenda').value;
+  fillTalhaoSelectFazenda(fazendaId, p.talhao_id);
+  document.getElementById('prQtd').value = p.quantidade_liquida_sacas || '';
+  fillPessoaSelectProducao(p.pessoa_id);
+  document.getElementById('prObservacoes').value = p.observacoes || '';
+  openModal('ovProducao');
+}
+async function saveProducao(){
+  const id = document.getElementById('prId').value;
+  const data = document.getElementById('prData').value;
+  const fazenda_id = document.getElementById('prFazenda').value;
+  const talhao_id = document.getElementById('prTalhao').value;
+  const qtd = Number(document.getElementById('prQtd').value)||0;
+  const pessoa_id = document.getElementById('prPessoa').value || null;
+  const observacoes = document.getElementById('prObservacoes').value.trim();
+
+  if (!data){ alert('Informe a data.'); return; }
+  if (!fazenda_id){ alert('Selecione a fazenda.'); return; }
+  if (!talhao_id){ alert('Selecione o talhão.'); return; }
+  if (qtd <= 0){ alert('A quantidade líquida deve ser maior que zero.'); return; }
+  if (!pessoa_id){ alert('Selecione para quem foi entregue.'); return; }
+
+  const payload = {
+    safra_id: D.safraAtual, fazenda_id, talhao_id, pessoa_id, data,
+    quantidade_liquida_sacas: qtd, observacoes, updated_at: new Date().toISOString()
+  };
+  let res;
+  if (id) res = await sb.from('faz_producao').update(payload).eq('id', id);
+  else res = await sb.from('faz_producao').insert(payload);
+  if (res.error){
+    alert('Erro ao salvar produção: '+res.error.message);
+    return;
+  }
+  closeModal('ovProducao');
+  await reloadSafraScopedData();
+  goTab('producao');
+}
+async function deleteProducao(id){
+  if (!confirm('Excluir este lançamento de produção?')) return;
+  await sb.from('faz_producao').delete().eq('id', id);
+  await reloadSafraScopedData();
+  goTab('producao');
+}
+
 // ================= CONTRATOS =================
 function renderContratos(){
   const el = document.getElementById('tab-contratos');
@@ -1231,6 +1517,7 @@ function renderCadastrosShell(){
     <div class="subnav">
       <button class="subnavBtn ${D.cadastroSub==='fazendas'?'active':''}" onclick="goCadastroSub('fazendas')">Fazendas</button>
       <button class="subnavBtn ${D.cadastroSub==='safras'?'active':''}" onclick="goCadastroSub('safras')">Safras</button>
+      <button class="subnavBtn ${D.cadastroSub==='talhoes'?'active':''}" onclick="goCadastroSub('talhoes')">Talhões</button>
       <button class="subnavBtn ${D.cadastroSub==='pessoas'?'active':''}" onclick="goCadastroSub('pessoas')">Pessoas e empresas</button>
       <button class="subnavBtn ${D.cadastroSub==='contas'?'active':''}" onclick="goCadastroSub('contas')">Contas</button>
       <button class="subnavBtn ${D.cadastroSub==='categorias'?'active':''}" onclick="goCadastroSub('categorias')">Categorias</button>
@@ -1242,6 +1529,7 @@ async function renderCadastros(){
   const c = document.getElementById('cadastroContent');
   if (D.cadastroSub==='fazendas') c.innerHTML = tplCadastroFazendas();
   if (D.cadastroSub==='safras') c.innerHTML = tplCadastroSafras();
+  if (D.cadastroSub==='talhoes') c.innerHTML = tplCadastroTalhoes();
   if (D.cadastroSub==='pessoas') c.innerHTML = tplCadastroPessoas();
   if (D.cadastroSub==='categorias') c.innerHTML = tplCadastroCategorias();
   if (D.cadastroSub==='contas'){
@@ -1394,6 +1682,66 @@ async function deleteSafraCad(id){
     await loadBase();
   }
   goCadastroSub('safras');
+}
+
+// ---------- Cadastro: Talhões ----------
+function tplCadastroTalhoes(){
+  return `
+    <div class="card">
+      <div class="cardHead"><h3>Talhões</h3><button class="btn small" onclick="openTalhaoModal()">+ Novo talhão</button></div>
+      ${D.talhoes.length ? `<table><thead><tr><th>Nome</th><th>Fazenda</th><th>Área (HA)</th><th>Status</th><th></th></tr></thead><tbody>
+        ${D.talhoes.map(t=>`<tr>
+          <td><b>${esc(t.nome)}</b></td>
+          <td>${esc(D.fazendas.find(f=>f.id===t.fazenda_id)?.nome || '—')}</td>
+          <td>${t.area_ha||'—'}</td>
+          <td><span class="badge ${t.ativo?'entregue':'pendente'}">${t.ativo?'Ativo':'Inativo'}</span></td>
+          <td>
+            <button class="iconBtn" onclick="openTalhaoModal('${t.id}')">Editar</button>
+            <button class="iconBtn" onclick="toggleTalhaoAtivo('${t.id}', ${!!t.ativo})">${t.ativo?'Inativar':'Ativar'}</button>
+            <button class="iconBtn" onclick="deleteTalhaoCad('${t.id}')">Excluir</button>
+          </td>
+        </tr>`).join('')}</tbody></table>`
+        : `<div class="empty"><b>Nenhum talhão cadastrado</b>Cadastre os talhões de cada fazenda.</div>`}
+    </div>`;
+}
+function openTalhaoModal(id){
+  if (!D.fazendas.length){ alert('Cadastre uma fazenda antes de criar um talhão.'); return; }
+  document.getElementById('tlId').value = id||'';
+  document.getElementById('tlModalTitle').textContent = id ? 'Editar Talhão' : 'Novo Talhão';
+  const t = D.talhoes.find(x=>x.id===id) || {};
+  document.getElementById('tlNome').value = t.nome||'';
+  const sel = document.getElementById('tlFazenda');
+  sel.innerHTML = D.fazendas.map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join('');
+  if (t.fazenda_id) sel.value = t.fazenda_id;
+  document.getElementById('tlArea').value = t.area_ha||'';
+  document.getElementById('tlObservacoes').value = t.observacoes||'';
+  openModal('ovTalhao');
+}
+async function saveTalhao(){
+  const id = document.getElementById('tlId').value;
+  const payload = {
+    nome: document.getElementById('tlNome').value.trim(),
+    fazenda_id: document.getElementById('tlFazenda').value,
+    area_ha: document.getElementById('tlArea').value ? Number(document.getElementById('tlArea').value) : null,
+    observacoes: document.getElementById('tlObservacoes').value.trim(),
+    updated_at: new Date().toISOString()
+  };
+  if (!payload.nome){ alert('Informe o nome do talhão.'); return; }
+  if (!payload.fazenda_id){ alert('Selecione a fazenda.'); return; }
+  if (id) await sb.from('faz_talhoes').update(payload).eq('id', id);
+  else await sb.from('faz_talhoes').insert(payload);
+  closeModal('ovTalhao');
+  await loadBase();
+  goCadastroSub('talhoes');
+}
+async function toggleTalhaoAtivo(id, current){
+  await sb.from('faz_talhoes').update({ ativo: !current, updated_at:new Date().toISOString() }).eq('id', id);
+  await loadBase(); goCadastroSub('talhoes');
+}
+async function deleteTalhaoCad(id){
+  if (!confirm('Excluir definitivamente este talhão? Isso só é possível se ele não estiver vinculado a nenhuma produção.')) return;
+  const ok = await tryDelete('faz_talhoes', id);
+  if (ok){ await loadBase(); goCadastroSub('talhoes'); }
 }
 
 // ---------- Cadastro: Pessoas ----------
