@@ -68,14 +68,14 @@ table{width:100%; border-collapse:collapse; font-size:13.5px;}
 th{text-align:left; color:var(--muted); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.4px; padding:8px 10px; border-bottom:1.5px solid var(--linha);}
 td{padding:11px 10px; border-bottom:1px solid var(--linha); vertical-align:middle;}
 tr:last-child td{border-bottom:none;}
-.badge{padding:4px 11px; border-radius:20px; font-size:11.5px; font-weight:600; display:inline-block;}
+.badge{padding:4px 11px; border-radius:20px; font-size:11.5px; font-weight:600; display:inline-block; white-space:nowrap;}
 .badge.pago{background:#E4EDE1; color:var(--pago);}
 .badge.pendente{background:#F7E9DB; color:var(--pendente);}
 .badge.aberto{background:#F7E9DB; color:var(--pendente);}
 .badge.entregue,.badge.liquidado{background:#E4EDE1; color:var(--pago);}
 .badge.fixa{background:#EFE4EE; color:#6B3F63;}
 .badge.variavel{background:#DDE7F2; color:#33587F;}
-.iconBtn{background:transparent; color:var(--muted); font-size:13px; padding:5px 9px; border-radius:6px;}
+.iconBtn{background:transparent; color:var(--muted); font-size:12.5px; padding:5px 8px; border-radius:6px; white-space:nowrap;}
 .iconBtn:hover{background:var(--creme); color:var(--verde2);}
 .empty{text-align:center; padding:40px 20px; color:var(--muted); font-size:13.5px;}
 .empty b{display:block; color:var(--verde2); font-size:16px; margin-bottom:6px; font-family:'Cormorant Garamond',serif; font-weight:600;}
@@ -101,6 +101,11 @@ tr:last-child td{border-bottom:none;}
 .chipList label:last-child{border-bottom:none;}
 .chipList input[type=checkbox]{width:16px; height:16px;}
 
+/* subabas de Cadastros */
+.subnav{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px;}
+.subnavBtn{background:#fff; border:1.5px solid var(--linha); color:var(--verde2); padding:9px 16px; border-radius:9px; font-size:13.5px; font-weight:600;}
+.subnavBtn.active{background:var(--verde2); color:#fff; border-color:var(--verde2);}
+
 /* modal */
 .overlay{display:none; position:fixed; inset:0; background:rgba(44,66,48,.45); align-items:center; justify-content:center; z-index:50; padding:20px;}
 .overlay.show{display:flex;}
@@ -118,6 +123,7 @@ tr:last-child td{border-bottom:none;}
   .main{padding:18px;}
   .grid2,.grid3{grid-template-columns:1fr;}
   .filterBar .grp{min-width:120px; flex:1;}
+  table{font-size:12px;}
 }
 </style>
 </head>
@@ -147,15 +153,13 @@ tr:last-child td{border-bottom:none;}
     <h1>🌾 Fazenda</h1>
     <div class="sub">Gestão Financeira</div>
     <div class="navItem active" data-tab="dashboard" onclick="goTab('dashboard')">📊 Dashboard</div>
-    <div class="navItem" data-tab="fazendas" onclick="goTab('fazendas')">🏡 Fazendas</div>
     <div class="navItem" data-tab="lancamentos" onclick="goTab('lancamentos')">💱 Lançamentos</div>
     <div class="navItem" data-tab="contratos" onclick="goTab('contratos')">📄 Contratos</div>
-    <div class="navItem" data-tab="contas" onclick="goTab('contas')">🏦 Contas</div>
+    <div class="navItem" data-tab="cadastros" onclick="goTab('cadastros')">🗂️ Cadastros</div>
     <button class="logout" onclick="doLogout()">← Sair</button>
   </div>
 
   <div class="main">
-    <!-- topbar: safra global + filtro secundário de fazenda -->
     <div class="topbar">
       <div class="grp">
         <label>Safra (contexto global)</label>
@@ -171,14 +175,14 @@ tr:last-child td{border-bottom:none;}
     </div>
 
     <div id="tab-dashboard" class="tabPane"></div>
-    <div id="tab-fazendas" class="tabPane" style="display:none"></div>
     <div id="tab-lancamentos" class="tabPane" style="display:none"></div>
     <div id="tab-contratos" class="tabPane" style="display:none"></div>
-    <div id="tab-contas" class="tabPane" style="display:none"></div>
+    <div id="tab-cadastros" class="tabPane" style="display:none"></div>
   </div>
 </div>
 
 <!-- ============ MODALS ============ -->
+
 <div class="overlay" id="ovFazenda"><div class="modal">
   <h3 id="fzModalTitle">Nova Fazenda</h3>
   <input type="hidden" id="fzId">
@@ -200,10 +204,23 @@ tr:last-child td{border-bottom:none;}
 </div></div>
 
 <div class="overlay" id="ovSafra"><div class="modal">
-  <h3>Nova Safra</h3>
-  <div class="field"><label>Nome da safra</label><input id="sfNome" placeholder="Ex: Soja 25/26"></div>
+  <h3 id="sfModalTitle">Nova Safra</h3>
+  <input type="hidden" id="sfId">
+  <div class="field"><label>Nome da safra</label><input id="sfNome" placeholder="Ex: Soja 2025/2026"></div>
+  <div class="grid2">
+    <div class="field"><label>Produto principal</label><input id="sfProduto" placeholder="Ex: Soja"></div>
+    <div class="field"><label>Ano/período</label><input id="sfAnoPeriodo" placeholder="Ex: 2025/2026"></div>
+  </div>
+  <div class="grid2">
+    <div class="field"><label>Data inicial (opcional)</label><input id="sfDataIni" type="date"></div>
+    <div class="field"><label>Data final (opcional)</label><input id="sfDataFim" type="date"></div>
+  </div>
   <div class="field"><label>Status</label>
-    <select id="sfStatus"><option value="ativa">Ativa</option><option value="encerrada">Encerrada</option></select>
+    <select id="sfStatus">
+      <option value="Planejamento">Planejamento</option>
+      <option value="Ativa">Ativa</option>
+      <option value="Encerrada">Encerrada</option>
+    </select>
   </div>
   <div class="field">
     <label>Fazendas envolvidas nesta safra</label>
@@ -215,13 +232,127 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div></div>
 
-<!-- Despesa -->
+<div class="overlay" id="ovPessoa"><div class="modal">
+  <h3 id="psModalTitle">Novo Cadastro</h3>
+  <input type="hidden" id="psId">
+  <div class="grid2">
+    <div class="field"><label>Nome / razão social</label><input id="psNome" placeholder="Nome"></div>
+    <div class="field"><label>Nome fantasia (opcional)</label><input id="psFantasia" placeholder="Nome fantasia"></div>
+  </div>
+  <div class="grid2">
+    <div class="field"><label>CPF/CNPJ (opcional)</label><input id="psDocumento" placeholder="Documento"></div>
+    <div class="field"><label>Tipo de pessoa</label>
+      <select id="psTipoPessoa"><option value="fisica">Física</option><option value="juridica">Jurídica</option></select>
+    </div>
+  </div>
+  <div class="field"><label>Tipo de relacionamento</label>
+    <select id="psTipoRelacionamento">
+      <option value="fornecedor">Recebedor/Fornecedor</option>
+      <option value="pagador">Pagador/Cliente</option>
+      <option value="ambos">Ambos</option>
+    </select>
+  </div>
+  <div class="field"><label>Telefone (opcional)</label><input id="psTelefone" placeholder="Telefone"></div>
+  <div class="field"><label>Observações (opcional)</label><input id="psObservacoes" placeholder="Observações"></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovPessoa')">Cancelar</button>
+    <button class="btn" onclick="savePessoa()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="ovPessoaQuick"><div class="modal" style="width:380px">
+  <h3 id="pqModalTitle">Novo Cadastro</h3>
+  <input type="hidden" id="pqContext">
+  <div class="field"><label>Nome</label><input id="pqNome" placeholder="Nome"></div>
+  <div class="field"><label>CPF/CNPJ (opcional)</label><input id="pqDocumento" placeholder="Documento"></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovPessoaQuick')">Cancelar</button>
+    <button class="btn" onclick="savePessoaQuick()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="ovConta"><div class="modal">
+  <h3 id="ctaModalTitle">Nova Conta</h3>
+  <input type="hidden" id="ctaId">
+  <div class="grid2">
+    <div class="field"><label>Nome de identificação</label><input id="ctaNome" placeholder="Ex: Banco do Brasil - Safra"></div>
+    <div class="field"><label>Instituição financeira</label><input id="ctaInstituicao" placeholder="Ex: Banco do Brasil"></div>
+  </div>
+  <div class="grid2">
+    <div class="field"><label>Tipo de conta</label>
+      <select id="ctaTipo">
+        <option value="corrente">Conta corrente</option>
+        <option value="poupanca">Poupança</option>
+        <option value="dinheiro">Dinheiro</option>
+        <option value="investimento">Investimento</option>
+        <option value="outra">Outra</option>
+      </select>
+    </div>
+    <div class="field"><label>Número da conta</label><input id="ctaNumero" placeholder="Nº da conta"></div>
+  </div>
+  <div class="field"><label>Agência (opcional)</label><input id="ctaAgencia" placeholder="Agência"></div>
+  <div class="grid2">
+    <div class="field"><label>Saldo inicial</label><input id="ctaSaldoInicial" type="number" step="0.01"></div>
+    <div class="field"><label>Data do saldo inicial</label><input id="ctaDataSaldo" type="date"></div>
+  </div>
+  <div class="field"><label>Possui cheque especial?</label>
+    <select id="ctaPossuiCheque" onchange="onCtaChequeChange()"><option value="nao">Não</option><option value="sim">Sim</option></select>
+  </div>
+  <div class="field" id="ctaLimiteWrap" style="display:none">
+    <label>Limite do cheque especial</label><input id="ctaLimiteCheque" type="number" step="0.01">
+  </div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovConta')">Cancelar</button>
+    <button class="btn" onclick="saveConta()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="ovCategoria"><div class="modal" style="width:420px">
+  <h3 id="catModalTitle">Nova Categoria</h3>
+  <input type="hidden" id="catId">
+  <div class="field"><label>Nome</label><input id="catNome" placeholder="Ex: Milho"></div>
+  <div class="grid2">
+    <div class="field"><label>Tipo financeiro</label>
+      <select id="catTipoFinanceiro">
+        <option value="Receita">Receita</option>
+        <option value="Despesa">Despesa</option>
+        <option value="Investimento">Investimento</option>
+        <option value="Financiamento">Financiamento</option>
+      </select>
+    </div>
+    <div class="field"><label>Aplicável em</label>
+      <select id="catAplicavelEm">
+        <option value="entrada">Entrada</option>
+        <option value="saida">Saída</option>
+        <option value="ambas">Ambas</option>
+      </select>
+    </div>
+  </div>
+  <div class="field"><label>Ordem de exibição</label><input id="catOrdem" type="number" step="1" value="0"></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovCategoria')">Cancelar</button>
+    <button class="btn" onclick="saveCategoria()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="ovSubcategoria"><div class="modal" style="width:380px">
+  <h3 id="subModalTitle">Nova Subcategoria</h3>
+  <input type="hidden" id="subId">
+  <input type="hidden" id="subCategoriaId">
+  <div class="field"><label>Nome</label><input id="subNome" placeholder="Nome da subcategoria"></div>
+  <div class="field"><label>Ordem de exibição</label><input id="subOrdem" type="number" step="1" value="0"></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovSubcategoria')">Cancelar</button>
+    <button class="btn" onclick="saveSubcategoria()">Salvar</button>
+  </div>
+</div></div>
+
 <div class="overlay" id="ovDespesa"><div class="modal">
   <h3 id="dsModalTitle">Nova Despesa</h3>
   <input type="hidden" id="dsId">
   <div class="grid2">
     <div class="field"><label>Data</label><input id="dsData" type="date"></div>
-    <div class="field"><label>Categoria</label>
+    <div class="field"><label>Tipo financeiro</label>
       <select id="dsCategoriaGrupo" onchange="onDsCategoriaChange()">
         <option value="Despesa">Despesa</option>
         <option value="Investimento">Investimento</option>
@@ -229,7 +360,8 @@ tr:last-child td{border-bottom:none;}
       </select>
     </div>
   </div>
-  <div class="field"><label>Subcategoria</label><select id="dsSubcategoria"></select></div>
+  <div class="field"><label>Categoria</label><select id="dsCategoria" onchange="onDsCategoriaSelChange()"></select></div>
+  <div class="field" id="dsSubcategoriaWrap" style="display:none"><label>Subcategoria</label><select id="dsSubcategoria"></select></div>
   <div class="field" id="dsTipoWrap" style="display:none">
     <label>Tipo</label>
     <select id="dsTipo"><option value="fixa">Fixa</option><option value="variavel">Variável</option></select>
@@ -244,8 +376,8 @@ tr:last-child td{border-bottom:none;}
   <div class="field">
     <label>Fornecedor (opcional)</label>
     <div style="display:flex; gap:8px;">
-      <select id="dsFornecedor" style="flex:1"></select>
-      <button type="button" class="btn small secondary" style="width:auto" onclick="openFornecedorQuick()">+</button>
+      <select id="dsPessoa" style="flex:1"></select>
+      <button type="button" class="btn small secondary" style="width:auto" onclick="openPessoaQuick('despesa')">+</button>
     </div>
   </div>
   <div class="grid2">
@@ -256,16 +388,6 @@ tr:last-child td{border-bottom:none;}
   <div class="modalActions">
     <button class="btn secondary" onclick="closeModal('ovDespesa')">Cancelar</button>
     <button class="btn" onclick="saveDespesa()">Salvar</button>
-  </div>
-</div></div>
-
-<div class="overlay" id="ovFornecedorQuick"><div class="modal" style="width:380px">
-  <h3>Novo Fornecedor</h3>
-  <div class="field"><label>Nome</label><input id="fnNome" placeholder="Nome do fornecedor"></div>
-  <div class="field"><label>CPF/CNPJ</label><input id="fnDocumento" placeholder="Documento"></div>
-  <div class="modalActions">
-    <button class="btn secondary" onclick="closeModal('ovFornecedorQuick')">Cancelar</button>
-    <button class="btn" onclick="saveFornecedorQuick()">Salvar</button>
   </div>
 </div></div>
 
@@ -280,13 +402,12 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div></div>
 
-<!-- Receita -->
 <div class="overlay" id="ovReceita"><div class="modal">
   <h3 id="rcModalTitle">Nova Receita</h3>
   <input type="hidden" id="rcId">
   <div class="grid2">
     <div class="field"><label>Data</label><input id="rcData" type="date"></div>
-    <div class="field"><label>Categoria</label>
+    <div class="field"><label>Tipo financeiro</label>
       <select id="rcCategoriaGrupo" onchange="onRcCategoriaChange()">
         <option value="Receita">Receita</option>
         <option value="Investimento">Investimento</option>
@@ -294,7 +415,8 @@ tr:last-child td{border-bottom:none;}
       </select>
     </div>
   </div>
-  <div class="field"><label>Subcategoria</label><select id="rcSubcategoria" onchange="onRcSubcategoriaChange()"></select></div>
+  <div class="field"><label>Categoria</label><select id="rcCategoria" onchange="onRcCategoriaSelChange()"></select></div>
+  <div class="field" id="rcSubcategoriaWrap" style="display:none"><label>Subcategoria</label><select id="rcSubcategoria"></select></div>
   <div class="field" id="rcOperacionalWrap" style="display:none">
     <label>É receita operacional?</label>
     <select id="rcOperacional"><option value="sim">Sim</option><option value="nao">Não</option></select>
@@ -308,7 +430,13 @@ tr:last-child td{border-bottom:none;}
   <div class="totalLine"><span>Valor total</span><span id="rcTotalDisplay">R$ 0,00</span></div>
   <div class="grid2">
     <div class="field"><label>Conta de recebimento</label><select id="rcConta"></select></div>
-    <div class="field"><label>Origem / pagador</label><input id="rcOrigemPagador" placeholder="Quem pagou"></div>
+    <div class="field">
+      <label>Pagador/Cliente (opcional)</label>
+      <div style="display:flex; gap:8px;">
+        <select id="rcPessoa" style="flex:1"></select>
+        <button type="button" class="btn small secondary" style="width:auto" onclick="openPessoaQuick('receita')">+</button>
+      </div>
+    </div>
   </div>
   <div class="field" id="rcOrigemProdutoWrap" style="display:none">
     <label>Origem do produto</label>
@@ -328,7 +456,6 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div></div>
 
-<!-- Contrato -->
 <div class="overlay" id="ovContrato"><div class="modal">
   <h3 id="ctModalTitle">Novo Contrato</h3>
   <input type="hidden" id="ctId">
@@ -354,38 +481,17 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div></div>
 
-<div class="overlay" id="ovConta"><div class="modal" style="width:380px">
-  <h3>Nova Conta</h3>
-  <div class="field"><label>Nome da conta</label><input id="ctaNome" placeholder="Ex: Banco do Brasil"></div>
-  <div class="modalActions">
-    <button class="btn secondary" onclick="closeModal('ovConta')">Cancelar</button>
-    <button class="btn" onclick="saveConta()">Salvar</button>
-  </div>
-</div></div>
-
 <script>
 // ================= SUPABASE =================
 const SB_URL = "https://ceqvwrzyqjpxvekapqto.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNlcXZ3cnp5cWpweHZla2FwcXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyNDU1MDUsImV4cCI6MjA5NzgyMTUwNX0.IJZlL7UT07KHHDRMpkkMShWIVQfQgcbZjSxWtpF3VvU";
 const sb = supabase.createClient(SB_URL, SB_KEY);
 
-// ================= CATEGORIAS / SUBCATEGORIAS =================
-const RECEITA_SUB = {
-  'Receita': ['Milho','Soja','Receitas financeiras','Outras receitas'],
-  'Investimento': ['Financeiro','Máquinas/equipamentos','Veículos'],
-  'Financiamento': ['Próprio','Terceiros']
-};
-const DESPESA_SUB = {
-  'Despesa': ['Alimentação','Pró-labore','Tarifas bancárias'],
-  'Investimento': ['Máquinas/equipamentos'],
-  'Financiamento': ['Financiamento de terceiros','Custeio']
-};
-
 // ================= STATE =================
 let D = {
-  fazendas:[], safras:[], safraFazendas:{}, contas:[], fornecedores:[],
-  despesas:[], receitas:[], contratos:[],
-  safraAtual:null, fazendaFiltro:'', currentTab:'dashboard'
+  fazendas:[], safras:[], safraFazendas:{}, contas:[], pessoas:[], categorias:[], subcategorias:[],
+  lancamentos:[], contratos:[],
+  safraAtual:null, fazendaFiltro:'', currentTab:'dashboard', cadastroSub:'fazendas', categoriaSearch:''
 };
 let LF = { tipo:'todos', categoria:'todas', fazenda:'', conta:'', dataIni:'', dataFim:'' };
 
@@ -420,7 +526,7 @@ async function showApp(){
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('app').classList.add('show');
   await loadBase();
-  goTab('dashboard');
+  await goTab('dashboard');
 }
 
 // ================= PERSISTÊNCIA DE CONTEXTO (safra global) =================
@@ -433,19 +539,37 @@ function persistFazendaFiltro(){
   else localStorage.removeItem('faz_fazendaFiltro');
 }
 
+// ================= HELPER: exclusão segura =================
+async function tryDelete(table, id){
+  const { error } = await sb.from(table).delete().eq('id', id);
+  if (error){
+    if (error.code === '23503'){
+      alert('Este cadastro está vinculado a lançamentos e não pode ser excluído definitivamente. Use "Inativar" para removê-lo das opções de novos lançamentos.');
+    } else {
+      alert('Erro ao excluir: '+error.message);
+    }
+    return false;
+  }
+  return true;
+}
+
 // ================= LOAD BASE =================
 async function loadBase(){
-  const [fz, sf, ct, fr, sfz] = await Promise.all([
+  const [fz, sf, ct, ps, cat, sub, sfz] = await Promise.all([
     sb.from('faz_fazendas').select('*').order('nome'),
     sb.from('faz_safras').select('*').order('created_at',{ascending:false}),
     sb.from('faz_contas').select('*').order('nome'),
-    sb.from('faz_fornecedores').select('*').order('nome'),
+    sb.from('faz_pessoas').select('*').order('nome'),
+    sb.from('faz_categorias').select('*').order('ordem'),
+    sb.from('faz_subcategorias').select('*').order('ordem'),
     sb.from('faz_safra_fazendas').select('*')
   ]);
   D.fazendas = fz.data || [];
   D.safras = sf.data || [];
   D.contas = ct.data || [];
-  D.fornecedores = fr.data || [];
+  D.pessoas = ps.data || [];
+  D.categorias = cat.data || [];
+  D.subcategorias = sub.data || [];
   D.safraFazendas = {};
   (sfz.data || []).forEach(r=>{
     if (!D.safraFazendas[r.safra_id]) D.safraFazendas[r.safra_id] = [];
@@ -468,7 +592,7 @@ async function loadBase(){
 function fillSafraSelect(){
   const sel = document.getElementById('selSafra');
   sel.innerHTML = D.safras.length
-    ? D.safras.map(s=>`<option value="${s.id}">${esc(s.nome)}${s.status==='encerrada'?' (encerrada)':''}</option>`).join('')
+    ? D.safras.map(s=>`<option value="${s.id}">${esc(s.nome)} (${esc(s.status)})</option>`).join('')
     : '<option value="">Nenhuma safra cadastrada</option>';
   sel.value = D.safraAtual || '';
   updateSafraTag();
@@ -513,34 +637,31 @@ function needSafra(){
 // ================= DADOS ESCOPADOS PELA SAFRA =================
 async function reloadSafraScopedData(){
   if (D.safraAtual){
-    const [ds, rc, ct] = await Promise.all([
-      sb.from('faz_despesas').select('*').eq('safra_id', D.safraAtual).order('data',{ascending:false}),
-      sb.from('faz_receitas').select('*').eq('safra_id', D.safraAtual).order('data',{ascending:false}),
+    const [lc, ct] = await Promise.all([
+      sb.from('faz_lancamentos').select('*').eq('safra_id', D.safraAtual).order('data',{ascending:false}),
       sb.from('faz_contratos').select('*').eq('safra_id', D.safraAtual).order('created_at',{ascending:false})
     ]);
-    D.despesas = ds.data || [];
-    D.receitas = rc.data || [];
+    D.lancamentos = lc.data || [];
     D.contratos = ct.data || [];
   } else {
-    D.despesas = []; D.receitas = []; D.contratos = [];
+    D.lancamentos = []; D.contratos = [];
   }
-  renderCurrentTab();
+  await renderCurrentTab();
 }
 
 // ================= NAV =================
-function goTab(tab){
+async function goTab(tab){
   D.currentTab = tab;
   document.querySelectorAll('.navItem').forEach(n=>n.classList.toggle('active', n.dataset.tab===tab));
   document.querySelectorAll('.tabPane').forEach(p=>p.style.display='none');
   document.getElementById('tab-'+tab).style.display='block';
-  renderCurrentTab();
+  await renderCurrentTab();
 }
-function renderCurrentTab(){
+async function renderCurrentTab(){
   if (D.currentTab==='dashboard') renderDashboard();
-  if (D.currentTab==='fazendas') renderFazendas();
   if (D.currentTab==='lancamentos') renderLancamentos();
   if (D.currentTab==='contratos') renderContratos();
-  if (D.currentTab==='contas') renderContas();
+  if (D.currentTab==='cadastros') await renderCadastros();
 }
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
 function openModal(id){ document.getElementById(id).classList.add('show'); }
@@ -548,11 +669,43 @@ function noSafraMsg(){
   return `<div class="card"><div class="empty"><b>Nenhuma safra selecionada</b>Crie uma fazenda e uma safra para começar a lançar informações.</div></div>`;
 }
 
+// ================= CATEGORIAS: helpers =================
+function categoriaNome(id){ return D.categorias.find(c=>c.id===id)?.nome || '—'; }
+function subcategoriaNome(id){ return D.subcategorias.find(s=>s.id===id)?.nome || ''; }
+function subcategoriasDe(categoriaId){
+  return D.subcategorias.filter(s=>s.categoria_id===categoriaId).sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+}
+function getCategoriasFor(grupo, direcao, currentId){
+  let list = D.categorias.filter(c=>c.tipo_financeiro===grupo && (c.aplicavel_em===direcao || c.aplicavel_em==='ambas'));
+  list = list.filter(c=>c.ativo || c.id===currentId);
+  return list.sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+}
+function getSubcategoriasFor(categoriaId, currentId){
+  if (!categoriaId) return [];
+  let list = D.subcategorias.filter(s=>s.categoria_id===categoriaId);
+  list = list.filter(s=>s.ativo || s.id===currentId);
+  return list.sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+}
+function fillCategoriaSelect(elId, grupo, direcao, currentId){
+  const list = getCategoriasFor(grupo, direcao, currentId);
+  const sel = document.getElementById(elId);
+  sel.innerHTML = list.length ? list.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('') : '<option value="">Nenhuma categoria cadastrada</option>';
+}
+function fillSubcategoriaSelect(elId, categoriaId, currentId){
+  const list = getSubcategoriasFor(categoriaId, currentId);
+  const sel = document.getElementById(elId);
+  const wrap = document.getElementById(elId+'Wrap');
+  if (!list.length){ sel.innerHTML = '<option value="">Nenhuma</option>'; if (wrap) wrap.style.display='none'; return; }
+  if (wrap) wrap.style.display='block';
+  sel.innerHTML = '<option value="">Nenhuma</option>' + list.map(s=>`<option value="${s.id}">${esc(s.nome)}</option>`).join('');
+}
+
 // ================= DASHBOARD =================
 function renderDashboard(){
   const el = document.getElementById('tab-dashboard');
-  const despesasF = filterByFazendaGlobal(D.despesas);
-  const receitasF = filterByFazendaGlobal(D.receitas);
+  const lancF = filterByFazendaGlobal(D.lancamentos);
+  const despesasF = lancF.filter(l=>l.tipo==='despesa');
+  const receitasF = lancF.filter(l=>l.tipo==='receita');
   const totalDespesasPago = despesasF.filter(d=>d.status==='pago').reduce((a,b)=>a+Number(b.valor_total||0),0);
   const totalDespesasPend = despesasF.filter(d=>d.status==='pendente').reduce((a,b)=>a+Number(b.valor_total||0),0);
   const totalReceitas = receitasF.reduce((a,b)=>a+Number(b.valor_total||0),0);
@@ -577,91 +730,11 @@ function renderVencimentosList(list){
   const pend = list.filter(d=>d.status==='pendente').sort((a,b)=>(a.data_vencimento||'').localeCompare(b.data_vencimento||'')).slice(0,6);
   if (!pend.length) return `<div class="empty">Nenhuma despesa em aberto nesta safra.</div>`;
   return `<table><thead><tr><th>Descrição</th><th>Categoria</th><th>Vencimento</th><th>Valor</th></tr></thead><tbody>
-    ${pend.map(d=>`<tr><td>${esc(d.descricao||d.fornecedor||'—')}</td><td>${esc(d.subcategoria||d.categoria||'—')}</td><td>${fmtDate(d.data_vencimento)}</td><td>${fmtBRL(d.valor_total)}</td></tr>`).join('')}
+    ${pend.map(d=>`<tr><td>${esc(d.descricao||'—')}</td><td>${esc(categoriaNome(d.categoria_id))}</td><td>${fmtDate(d.data_vencimento)}</td><td>${fmtBRL(d.valor_total)}</td></tr>`).join('')}
   </tbody></table>`;
 }
 
-// ================= FAZENDAS =================
-function renderFazendas(){
-  const el = document.getElementById('tab-fazendas');
-  el.innerHTML = `
-    <div class="pageTitle">Fazendas</div>
-    <div class="pageDesc">Cadastro das propriedades</div>
-    <div class="card">
-      <div class="cardHead"><h3>Todas as fazendas</h3><button class="btn small" onclick="openFazendaModal()">+ Nova fazenda</button></div>
-      ${D.fazendas.length ? `<table><thead><tr><th>Nome</th><th>Inscrição</th><th>Situação</th><th>Titular</th><th>HA</th><th></th></tr></thead><tbody>
-        ${D.fazendas.map(f=>`<tr>
-          <td><b>${esc(f.nome)}</b></td>
-          <td>${esc(f.inscricao||'—')}</td>
-          <td><span class="badge ${f.tipo==='propria'?'entregue':'pendente'}">${f.tipo==='propria'?'Própria':'Arrendada'}</span></td>
-          <td>${esc(f.titular||'—')}</td>
-          <td>${f.ha||'—'}</td>
-          <td><button class="iconBtn" onclick="openFazendaModal('${f.id}')">Editar</button><button class="iconBtn" onclick="deleteFazenda('${f.id}')">Excluir</button></td>
-        </tr>`).join('')}</tbody></table>`
-        : `<div class="empty"><b>Nenhuma fazenda cadastrada</b>Cadastre a primeira propriedade para começar.</div>`}
-    </div>`;
-}
-function openFazendaModal(id){
-  document.getElementById('fzId').value = id||'';
-  document.getElementById('fzModalTitle').textContent = id ? 'Editar Fazenda' : 'Nova Fazenda';
-  const f = D.fazendas.find(x=>x.id===id) || {};
-  document.getElementById('fzNome').value = f.nome||'';
-  document.getElementById('fzInscricao').value = f.inscricao||'';
-  document.getElementById('fzHa').value = f.ha||'';
-  document.getElementById('fzTipo').value = f.tipo||'propria';
-  document.getElementById('fzTitular').value = f.titular||'';
-  openModal('ovFazenda');
-}
-async function saveFazenda(){
-  const id = document.getElementById('fzId').value;
-  const payload = {
-    nome: document.getElementById('fzNome').value.trim(),
-    inscricao: document.getElementById('fzInscricao').value.trim(),
-    ha: Number(document.getElementById('fzHa').value)||0,
-    tipo: document.getElementById('fzTipo').value,
-    titular: document.getElementById('fzTitular').value.trim()
-  };
-  if (!payload.nome){ alert('Informe o nome da fazenda.'); return; }
-  if (id) await sb.from('faz_fazendas').update(payload).eq('id', id);
-  else await sb.from('faz_fazendas').insert(payload);
-  closeModal('ovFazenda');
-  await loadBase();
-  goTab('fazendas');
-}
-async function deleteFazenda(id){
-  if (!confirm('Excluir esta fazenda? Os vínculos com safras e lançamentos serão desfeitos, mas os lançamentos não serão apagados.')) return;
-  await sb.from('faz_fazendas').delete().eq('id', id);
-  await loadBase();
-  goTab('fazendas');
-}
-
-// ================= SAFRA (multi-fazenda) =================
-function openSafraModal(){
-  if (!D.fazendas.length){ alert('Cadastre uma fazenda antes de criar uma safra.'); return; }
-  document.getElementById('sfNome').value = '';
-  document.getElementById('sfStatus').value = 'ativa';
-  document.getElementById('sfFazendasList').innerHTML = D.fazendas.map(f=>`
-    <label><input type="checkbox" class="sfFazChk" value="${f.id}"> ${esc(f.nome)}</label>`).join('');
-  openModal('ovSafra');
-}
-async function saveSafra(){
-  const nome = document.getElementById('sfNome').value.trim();
-  const status = document.getElementById('sfStatus').value;
-  const checked = Array.from(document.querySelectorAll('.sfFazChk:checked')).map(c=>c.value);
-  if (!nome){ alert('Informe o nome da safra.'); return; }
-  if (!checked.length){ alert('Selecione ao menos uma fazenda para vincular à safra.'); return; }
-  const { data, error } = await sb.from('faz_safras').insert({ nome, status, fazenda_id: checked[0] }).select();
-  if (error){ alert('Erro ao salvar a safra: '+error.message); return; }
-  const safraId = data[0].id;
-  const rows = checked.map(fid=>({ safra_id: safraId, fazenda_id: fid }));
-  await sb.from('faz_safra_fazendas').insert(rows);
-  closeModal('ovSafra');
-  D.safraAtual = safraId;
-  persistSafra();
-  await loadBase();
-}
-
-// ================= LANÇAMENTOS (Receitas + Despesas) =================
+// ================= LANÇAMENTOS (Receitas + Despesas unificados) =================
 function renderLancamentos(){
   const el = document.getElementById('tab-lancamentos');
   if (!D.safraAtual){ el.innerHTML = noSafraMsg(); return; }
@@ -719,20 +792,15 @@ function renderLancamentos(){
   setLancFilterValues();
 }
 function buildCombinedLancamentos(){
-  const rec = D.receitas.map(r=>({
-    id:r.id, tipo:'receita', data:r.data, categoria_grupo:r.categoria_grupo||'Receita', subcategoria:r.subcategoria||'',
-    descricao:r.produto, fazenda_id:r.fazenda_id, conta_id:r.conta_id, valor_total:r.valor_total, status:null
-  }));
-  const des = D.despesas.map(d=>({
-    id:d.id, tipo:'despesa', data:d.data||d.data_vencimento, categoria_grupo:d.categoria_grupo||'Despesa', subcategoria:d.subcategoria||'',
-    descricao:d.descricao||d.fornecedor||'', fazenda_id:d.fazenda_id, conta_id:d.conta_pagamento_id, valor_total:d.valor_total, status:d.status
-  }));
-  return [...rec, ...des].sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  return [...D.lancamentos].sort((a,b)=>(b.data||'').localeCompare(a.data||''));
 }
 function applyLancFilters(list){
   return list.filter(x=>{
     if (LF.tipo!=='todos' && x.tipo!==LF.tipo) return false;
-    if (LF.categoria!=='todas' && x.categoria_grupo!==LF.categoria) return false;
+    if (LF.categoria!=='todas'){
+      const cat = D.categorias.find(c=>c.id===x.categoria_id);
+      if (!cat || cat.tipo_financeiro!==LF.categoria) return false;
+    }
     if (LF.fazenda && x.fazenda_id!==LF.fazenda) return false;
     if (LF.conta && x.conta_id!==LF.conta) return false;
     if (LF.dataIni && (x.data||'') < LF.dataIni) return false;
@@ -743,20 +811,22 @@ function applyLancFilters(list){
 function renderLancRow(x){
   const fazNome = D.fazendas.find(f=>f.id===x.fazenda_id)?.nome || '—';
   const contaNomeX = D.contas.find(c=>c.id===x.conta_id)?.nome || '—';
+  const cat = D.categorias.find(c=>c.id===x.categoria_id);
+  const catLabel = cat ? esc(cat.nome) + (x.subcategoria_id ? ' · '+esc(subcategoriaNome(x.subcategoria_id)) : '') : '—';
   const tipoBadge = x.tipo==='receita' ? '<span class="badge entregue">Receita</span>' : '<span class="badge pendente">Despesa</span>';
   let statusCell = '—';
   let actions = '';
   if (x.tipo==='despesa'){
     statusCell = `<span class="badge ${x.status}">${x.status==='pago'?'Pago':'Pendente'}</span>`;
     actions = (x.status==='pendente' ? `<button class="iconBtn" onclick="openBaixaModal('${x.id}')">Dar baixa</button>` : '') +
-      `<button class="iconBtn" onclick="openDespesaModal('${x.id}')">Editar</button><button class="iconBtn" onclick="deleteDespesa('${x.id}')">Excluir</button>`;
+      `<button class="iconBtn" onclick="openDespesaModal('${x.id}')">Editar</button><button class="iconBtn" onclick="deleteLancamento('${x.id}')">Excluir</button>`;
   } else {
-    actions = `<button class="iconBtn" onclick="openReceitaModal('${x.id}')">Editar</button><button class="iconBtn" onclick="deleteReceita('${x.id}')">Excluir</button>`;
+    actions = `<button class="iconBtn" onclick="openReceitaModal('${x.id}')">Editar</button><button class="iconBtn" onclick="deleteLancamento('${x.id}')">Excluir</button>`;
   }
   return `<tr>
     <td>${fmtDate(x.data)}</td>
     <td>${tipoBadge}</td>
-    <td>${esc(x.categoria_grupo)}${x.subcategoria?' · '+esc(x.subcategoria):''}</td>
+    <td>${catLabel}</td>
     <td>${esc(x.descricao||'—')}</td>
     <td>${esc(fazNome)}</td>
     <td>${esc(contaNomeX)}</td>
@@ -786,8 +856,14 @@ function setLancFilterValues(){
   document.getElementById('lfDataIni').value = LF.dataIni;
   document.getElementById('lfDataFim').value = LF.dataFim;
 }
+async function deleteLancamento(id){
+  if (!confirm('Excluir este lançamento?')) return;
+  await sb.from('faz_lancamentos').delete().eq('id', id);
+  await reloadSafraScopedData();
+  goTab('lancamentos');
+}
 
-// ---------- fazenda / conta selects auxiliares ----------
+// ---------- selects auxiliares ----------
 function fillFazendaSelectSafra(elId, selected){
   const list = getFazendasDaSafra(D.safraAtual);
   const sel = document.getElementById(elId);
@@ -796,16 +872,58 @@ function fillFazendaSelectSafra(elId, selected){
 }
 function fillContaSelectInto(elId, selected){
   const sel = document.getElementById(elId);
-  sel.innerHTML = D.contas.length ? D.contas.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('') : '<option value="">Cadastre uma conta</option>';
+  const list = D.contas.filter(c=>c.ativo || c.id===selected);
+  sel.innerHTML = list.length ? list.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('') : '<option value="">Cadastre uma conta</option>';
   if (selected) sel.value = selected;
+}
+function fillPessoaSelectDespesa(selected){
+  const sel = document.getElementById('dsPessoa');
+  const list = D.pessoas.filter(p=>(p.tipo_relacionamento==='fornecedor'||p.tipo_relacionamento==='ambos') && (p.ativo || p.id===selected));
+  sel.innerHTML = '<option value="">Nenhum</option>' + list.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join('');
+  sel.value = selected || '';
+}
+function fillPessoaSelectReceita(selected){
+  const sel = document.getElementById('rcPessoa');
+  const list = D.pessoas.filter(p=>(p.tipo_relacionamento==='pagador'||p.tipo_relacionamento==='ambos') && (p.ativo || p.id===selected));
+  sel.innerHTML = '<option value="">Nenhum</option>' + list.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join('');
+  sel.value = selected || '';
+}
+
+// ---------- cadastro rápido de pessoa (a partir dos formulários) ----------
+function openPessoaQuick(context){
+  document.getElementById('pqContext').value = context;
+  document.getElementById('pqModalTitle').textContent = context==='despesa' ? 'Novo Fornecedor' : 'Novo Pagador/Cliente';
+  document.getElementById('pqNome').value = '';
+  document.getElementById('pqDocumento').value = '';
+  openModal('ovPessoaQuick');
+}
+async function savePessoaQuick(){
+  const context = document.getElementById('pqContext').value;
+  const nome = document.getElementById('pqNome').value.trim();
+  const documento = document.getElementById('pqDocumento').value.trim();
+  if (!nome){ alert('Informe o nome.'); return; }
+  const tipo_relacionamento = context==='despesa' ? 'fornecedor' : 'pagador';
+  const { data, error } = await sb.from('faz_pessoas').insert({ nome, documento, tipo_relacionamento }).select();
+  if (error){ alert('Erro ao cadastrar: '+error.message); return; }
+  const { data: list } = await sb.from('faz_pessoas').select('*').order('nome');
+  D.pessoas = list || [];
+  closeModal('ovPessoaQuick');
+  if (context==='despesa') fillPessoaSelectDespesa(data[0].id);
+  else fillPessoaSelectReceita(data[0].id);
 }
 
 // ================= DESPESA =================
-function onDsCategoriaChange(){
+function onDsCategoriaChange(preserveCatId, preserveSubId){
   const grupo = document.getElementById('dsCategoriaGrupo').value;
-  const subSel = document.getElementById('dsSubcategoria');
-  subSel.innerHTML = (DESPESA_SUB[grupo]||[]).map(s=>`<option value="${s}">${s}</option>`).join('');
   document.getElementById('dsTipoWrap').style.display = grupo==='Despesa' ? 'block' : 'none';
+  fillCategoriaSelect('dsCategoria', grupo, 'saida', preserveCatId||null);
+  if (preserveCatId) document.getElementById('dsCategoria').value = preserveCatId;
+  onDsCategoriaSelChange(preserveSubId);
+}
+function onDsCategoriaSelChange(preserveSubId){
+  const categoriaId = document.getElementById('dsCategoria').value;
+  fillSubcategoriaSelect('dsSubcategoria', categoriaId, preserveSubId||null);
+  if (preserveSubId) document.getElementById('dsSubcategoria').value = preserveSubId;
 }
 function calcDespesaTotal(){
   const q = Number(document.getElementById('dsQtd').value)||0;
@@ -814,43 +932,22 @@ function calcDespesaTotal(){
   document.getElementById('dsTotalDisplay').textContent = fmtBRL(t);
   return t;
 }
-function fillFornecedorSelect(selected){
-  const sel = document.getElementById('dsFornecedor');
-  sel.innerHTML = '<option value="">Nenhum</option>' + D.fornecedores.map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join('');
-  sel.value = selected || '';
-}
-function openFornecedorQuick(){
-  document.getElementById('fnNome').value = '';
-  document.getElementById('fnDocumento').value = '';
-  openModal('ovFornecedorQuick');
-}
-async function saveFornecedorQuick(){
-  const nome = document.getElementById('fnNome').value.trim();
-  const documento = document.getElementById('fnDocumento').value.trim();
-  if (!nome){ alert('Informe o nome do fornecedor.'); return; }
-  const { data, error } = await sb.from('faz_fornecedores').insert({ nome, documento }).select();
-  if (error){ alert('Erro ao cadastrar fornecedor: '+error.message); return; }
-  const { data: list } = await sb.from('faz_fornecedores').select('*').order('nome');
-  D.fornecedores = list || [];
-  closeModal('ovFornecedorQuick');
-  fillFornecedorSelect(data[0].id);
-}
 function openDespesaModal(id){
   if (!id && needSafra()) return;
   document.getElementById('dsId').value = id||'';
   document.getElementById('dsModalTitle').textContent = id ? 'Editar Despesa' : 'Nova Despesa';
-  const d = D.despesas.find(x=>x.id===id) || {};
+  const d = D.lancamentos.find(x=>x.id===id && x.tipo==='despesa') || {};
   document.getElementById('dsData').value = d.data || d.data_vencimento || new Date().toISOString().slice(0,10);
-  document.getElementById('dsCategoriaGrupo').value = d.categoria_grupo || 'Despesa';
-  onDsCategoriaChange();
-  if (d.subcategoria) document.getElementById('dsSubcategoria').value = d.subcategoria;
-  document.getElementById('dsTipo').value = d.tipo || 'variavel';
+  const cat = d.categoria_id ? D.categorias.find(c=>c.id===d.categoria_id) : null;
+  document.getElementById('dsCategoriaGrupo').value = (cat && cat.tipo_financeiro) || 'Despesa';
+  onDsCategoriaChange(d.categoria_id, d.subcategoria_id);
+  document.getElementById('dsTipo').value = d.tipo_fixo_variavel || 'variavel';
   fillFazendaSelectSafra('dsFazenda', d.fazenda_id);
   document.getElementById('dsDescricao').value = d.descricao || '';
   document.getElementById('dsQtd').value = d.quantidade || '';
   document.getElementById('dsValorUn').value = d.valor_unitario || '';
-  fillFornecedorSelect(d.fornecedor_id);
-  fillContaSelectInto('dsConta', d.conta_pagamento_id);
+  fillPessoaSelectDespesa(d.pessoa_id);
+  fillContaSelectInto('dsConta', d.conta_id);
   document.getElementById('dsNota').value = d.numero_nota || '';
   document.getElementById('dsVencimento').value = d.data_vencimento || '';
   calcDespesaTotal();
@@ -858,17 +955,17 @@ function openDespesaModal(id){
 }
 async function saveDespesa(){
   const id = document.getElementById('dsId').value;
-  const categoria_grupo = document.getElementById('dsCategoriaGrupo').value;
-  const subcategoria = document.getElementById('dsSubcategoria').value;
-  const tipo = categoria_grupo==='Despesa' ? document.getElementById('dsTipo').value : null;
+  const categoria_id = document.getElementById('dsCategoria').value || null;
+  const subcategoria_id = document.getElementById('dsSubcategoria').value || null;
+  const grupo = document.getElementById('dsCategoriaGrupo').value;
+  const tipo_fixo_variavel = grupo==='Despesa' ? document.getElementById('dsTipo').value : null;
   const fazenda_id = document.getElementById('dsFazenda').value;
   const descricao = document.getElementById('dsDescricao').value.trim();
   const qtd = Number(document.getElementById('dsQtd').value)||0;
   const valorUn = Number(document.getElementById('dsValorUn').value)||0;
   const valor_total = qtd*valorUn;
-  const fornecedor_id = document.getElementById('dsFornecedor').value || null;
-  const fornecedorNome = fornecedor_id ? (D.fornecedores.find(f=>f.id===fornecedor_id)?.nome || null) : null;
-  const conta_pagamento_id = document.getElementById('dsConta').value;
+  const pessoa_id = document.getElementById('dsPessoa').value || null;
+  const conta_id = document.getElementById('dsConta').value;
   const numero_nota = document.getElementById('dsNota').value.trim();
   const data_vencimento = document.getElementById('dsVencimento').value || null;
   const data = document.getElementById('dsData').value;
@@ -877,31 +974,23 @@ async function saveDespesa(){
   if (!fazenda_id){ alert('Selecione a fazenda.'); return; }
   if (!descricao){ alert('Informe a descrição/produto.'); return; }
   if (!qtd || !valorUn){ alert('Informe quantidade e valor unitário.'); return; }
-  if (!conta_pagamento_id){ alert('Selecione a conta de pagamento.'); return; }
+  if (!conta_id){ alert('Selecione a conta de pagamento.'); return; }
 
   const payload = {
-    data, categoria_grupo, subcategoria, tipo,
+    tipo:'despesa', data, categoria_id, subcategoria_id, tipo_fixo_variavel,
     fazenda_id, descricao, quantidade: qtd, valor_unitario: valorUn, valor_total,
-    fornecedor_id, fornecedor: fornecedorNome,
-    conta_pagamento_id, numero_nota, data_vencimento,
-    safra_id: D.safraAtual
+    pessoa_id, conta_id, numero_nota, data_vencimento,
+    safra_id: D.safraAtual, updated_at: new Date().toISOString()
   };
-  if (id) await sb.from('faz_despesas').update(payload).eq('id', id);
-  else await sb.from('faz_despesas').insert({ ...payload, status:'pendente' });
+  if (id) await sb.from('faz_lancamentos').update(payload).eq('id', id);
+  else await sb.from('faz_lancamentos').insert({ ...payload, status:'pendente' });
   closeModal('ovDespesa');
-  await reloadSafraScopedData();
-  goTab('lancamentos');
-}
-async function deleteDespesa(id){
-  if (!confirm('Excluir esta despesa?')) return;
-  await sb.from('faz_despesas').delete().eq('id', id);
   await reloadSafraScopedData();
   goTab('lancamentos');
 }
 function openBaixaModal(id){
   document.getElementById('bxId').value = id;
-  const sel = document.getElementById('bxConta');
-  sel.innerHTML = D.contas.length ? D.contas.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('') : '<option value="">Cadastre uma conta primeiro</option>';
+  fillContaSelectInto('bxConta', null);
   document.getElementById('bxData').value = new Date().toISOString().slice(0,10);
   openModal('ovBaixa');
 }
@@ -910,24 +999,27 @@ async function confirmBaixa(){
   const conta = document.getElementById('bxConta').value;
   const data = document.getElementById('bxData').value;
   if (!conta){ alert('Cadastre e selecione uma conta de pagamento.'); return; }
-  await sb.from('faz_despesas').update({ status:'pago', conta_pagamento_id: conta, data_pagamento: data }).eq('id', id);
+  await sb.from('faz_lancamentos').update({ status:'pago', conta_id: conta, data_pagamento: data, updated_at:new Date().toISOString() }).eq('id', id);
   closeModal('ovBaixa');
   await reloadSafraScopedData();
   goTab('lancamentos');
 }
 
 // ================= RECEITA =================
-function onRcCategoriaChange(){
+function onRcCategoriaChange(preserveCatId, preserveSubId){
   const grupo = document.getElementById('rcCategoriaGrupo').value;
-  const subSel = document.getElementById('rcSubcategoria');
-  subSel.innerHTML = (RECEITA_SUB[grupo]||[]).map(s=>`<option value="${s}">${s}</option>`).join('');
   document.getElementById('rcOperacionalWrap').style.display = grupo==='Receita' ? 'block' : 'none';
-  onRcSubcategoriaChange();
+  fillCategoriaSelect('rcCategoria', grupo, 'entrada', preserveCatId||null);
+  if (preserveCatId) document.getElementById('rcCategoria').value = preserveCatId;
+  onRcCategoriaSelChange(preserveSubId);
 }
-function onRcSubcategoriaChange(){
+function onRcCategoriaSelChange(preserveSubId){
+  const categoriaId = document.getElementById('rcCategoria').value;
+  fillSubcategoriaSelect('rcSubcategoria', categoriaId, preserveSubId||null);
+  if (preserveSubId) document.getElementById('rcSubcategoria').value = preserveSubId;
   const grupo = document.getElementById('rcCategoriaGrupo').value;
-  const sub = document.getElementById('rcSubcategoria').value;
-  const showOrigem = grupo==='Receita' && (sub==='Milho' || sub==='Soja');
+  const cat = D.categorias.find(c=>c.id===categoriaId);
+  const showOrigem = grupo==='Receita' && cat && (cat.nome==='Milho' || cat.nome==='Soja');
   document.getElementById('rcOrigemProdutoWrap').style.display = showOrigem ? 'block' : 'none';
   if (!showOrigem){
     document.getElementById('rcContratoWrap').style.display = 'none';
@@ -939,8 +1031,10 @@ function onRcSubcategoriaChange(){
 function onRcOrigemProdutoChange(){
   const val = document.getElementById('rcOrigemProduto').value;
   if (val==='contrato'){
-    const sub = document.getElementById('rcSubcategoria').value;
-    const options = D.contratos.filter(c=>(c.produto||'').trim().toLowerCase() === sub.trim().toLowerCase());
+    const categoriaId = document.getElementById('rcCategoria').value;
+    const cat = D.categorias.find(c=>c.id===categoriaId);
+    const nomeProd = cat ? cat.nome : '';
+    const options = D.contratos.filter(c=>(c.produto||'').trim().toLowerCase() === nomeProd.trim().toLowerCase());
     const sel = document.getElementById('rcContrato');
     sel.innerHTML = options.length
       ? options.map(c=>`<option value="${c.id}">${esc(c.numero_contrato||'Contrato')} — ${esc(c.produto)} (${c.quantidade} sc)</option>`).join('')
@@ -959,11 +1053,11 @@ function onRcContratoChange(){
   const saldo = contratoSaldo(contratoId, editId);
   document.getElementById('rcSaldoBox').innerHTML = `Saldo disponível no contrato: <b>${saldo.qtd}</b> sacas · <b>${fmtBRL(saldo.valor)}</b>`;
 }
-function contratoSaldo(contratoId, excludeReceitaId){
+function contratoSaldo(contratoId, excludeId){
   const c = D.contratos.find(x=>x.id===contratoId);
   if (!c) return { qtd:0, valor:0 };
-  const usados = D.receitas.filter(r=>r.contrato_id===contratoId && r.id!==excludeReceitaId);
-  const qtdUsada = usados.reduce((a,b)=>a+Number(b.quantidade_sacas||0),0);
+  const usados = D.lancamentos.filter(l=>l.tipo==='receita' && l.contrato_id===contratoId && l.id!==excludeId);
+  const qtdUsada = usados.reduce((a,b)=>a+Number(b.quantidade||0),0);
   const valorUsado = usados.reduce((a,b)=>a+Number(b.valor_total||0),0);
   return { qtd: Number(c.quantidade||0)-qtdUsada, valor: Number(c.valor_total||0)-valorUsado };
 }
@@ -978,19 +1072,18 @@ function openReceitaModal(id){
   if (!id && needSafra()) return;
   document.getElementById('rcId').value = id||'';
   document.getElementById('rcModalTitle').textContent = id ? 'Editar Receita' : 'Nova Receita';
-  const r = D.receitas.find(x=>x.id===id) || {};
+  const r = D.lancamentos.find(x=>x.id===id && x.tipo==='receita') || {};
   document.getElementById('rcData').value = r.data || new Date().toISOString().slice(0,10);
-  document.getElementById('rcCategoriaGrupo').value = r.categoria_grupo || 'Receita';
-  onRcCategoriaChange();
-  if (r.subcategoria) document.getElementById('rcSubcategoria').value = r.subcategoria;
+  const cat = r.categoria_id ? D.categorias.find(c=>c.id===r.categoria_id) : null;
+  document.getElementById('rcCategoriaGrupo').value = (cat && cat.tipo_financeiro) || 'Receita';
+  onRcCategoriaChange(r.categoria_id, r.subcategoria_id);
   document.getElementById('rcOperacional').value = r.operacional===false ? 'nao' : 'sim';
   fillFazendaSelectSafra('rcFazenda', r.fazenda_id);
-  document.getElementById('rcProduto').value = r.produto || '';
-  document.getElementById('rcQtd').value = r.quantidade_sacas || '';
+  document.getElementById('rcProduto').value = r.descricao || '';
+  document.getElementById('rcQtd').value = r.quantidade || '';
   document.getElementById('rcValorUn').value = r.valor_unitario || '';
   fillContaSelectInto('rcConta', r.conta_id);
-  document.getElementById('rcOrigemPagador').value = r.origem_pagador || '';
-  onRcSubcategoriaChange();
+  fillPessoaSelectReceita(r.pessoa_id);
   if (r.origem_produto){
     document.getElementById('rcOrigemProduto').value = r.origem_produto;
     onRcOrigemProdutoChange();
@@ -1004,8 +1097,10 @@ function openReceitaModal(id){
 }
 async function saveReceita(){
   const id = document.getElementById('rcId').value;
-  const categoria_grupo = document.getElementById('rcCategoriaGrupo').value;
-  const subcategoria = document.getElementById('rcSubcategoria').value;
+  const categoria_id = document.getElementById('rcCategoria').value || null;
+  const subcategoria_id = document.getElementById('rcSubcategoria').value || null;
+  const grupo = document.getElementById('rcCategoriaGrupo').value;
+  const cat = D.categorias.find(c=>c.id===categoria_id);
   const fazenda_id = document.getElementById('rcFazenda').value;
   const conta_id = document.getElementById('rcConta').value;
   const data = document.getElementById('rcData').value;
@@ -1013,8 +1108,8 @@ async function saveReceita(){
   const qtd = Number(document.getElementById('rcQtd').value)||0;
   const valorUn = Number(document.getElementById('rcValorUn').value)||0;
   const valor_total = qtd*valorUn;
-  const operacional = categoria_grupo==='Receita' ? (document.getElementById('rcOperacional').value==='sim') : null;
-  const origem_pagador = document.getElementById('rcOrigemPagador').value.trim();
+  const operacional = grupo==='Receita' ? (document.getElementById('rcOperacional').value==='sim') : null;
+  const pessoa_id = document.getElementById('rcPessoa').value || null;
 
   if (!data){ alert('Informe a data.'); return; }
   if (!fazenda_id){ alert('Selecione a fazenda.'); return; }
@@ -1023,7 +1118,7 @@ async function saveReceita(){
   if (!conta_id){ alert('Selecione a conta de recebimento.'); return; }
 
   let origem_produto = null, contrato_id = null;
-  const showOrigem = categoria_grupo==='Receita' && (subcategoria==='Milho' || subcategoria==='Soja');
+  const showOrigem = grupo==='Receita' && cat && (cat.nome==='Milho' || cat.nome==='Soja');
   if (showOrigem){
     origem_produto = document.getElementById('rcOrigemProduto').value;
     if (origem_produto==='contrato'){
@@ -1038,20 +1133,14 @@ async function saveReceita(){
   }
 
   const payload = {
-    data, categoria_grupo, subcategoria, operacional,
-    fazenda_id, produto, quantidade_sacas: qtd, valor_unitario: valorUn, valor_total,
-    conta_id, origem_pagador, origem_produto, contrato_id,
-    safra_id: D.safraAtual
+    tipo:'receita', data, categoria_id, subcategoria_id, operacional,
+    fazenda_id, descricao: produto, quantidade: qtd, valor_unitario: valorUn, valor_total,
+    conta_id, pessoa_id, origem_produto, contrato_id,
+    safra_id: D.safraAtual, updated_at: new Date().toISOString()
   };
-  if (id) await sb.from('faz_receitas').update(payload).eq('id', id);
-  else await sb.from('faz_receitas').insert(payload);
+  if (id) await sb.from('faz_lancamentos').update(payload).eq('id', id);
+  else await sb.from('faz_lancamentos').insert(payload);
   closeModal('ovReceita');
-  await reloadSafraScopedData();
-  goTab('lancamentos');
-}
-async function deleteReceita(id){
-  if (!confirm('Excluir esta receita?')) return;
-  await sb.from('faz_receitas').delete().eq('id', id);
   await reloadSafraScopedData();
   goTab('lancamentos');
 }
@@ -1129,35 +1218,469 @@ async function deleteContrato(id){
   goTab('contratos');
 }
 
-// ================= CONTAS =================
-function renderContas(){
-  const el = document.getElementById('tab-contas');
+// ================= CADASTROS (shell + subabas) =================
+async function goCadastroSub(sub){
+  D.cadastroSub = sub;
+  await renderCadastros();
+}
+function renderCadastrosShell(){
+  const el = document.getElementById('tab-cadastros');
   el.innerHTML = `
-    <div class="pageTitle">Contas</div>
-    <div class="pageDesc">Contas bancárias usadas para pagamentos e recebimentos</div>
+    <div class="pageTitle">Cadastros</div>
+    <div class="pageDesc">Fazendas, safras, pessoas, contas e categorias</div>
+    <div class="subnav">
+      <button class="subnavBtn ${D.cadastroSub==='fazendas'?'active':''}" onclick="goCadastroSub('fazendas')">Fazendas</button>
+      <button class="subnavBtn ${D.cadastroSub==='safras'?'active':''}" onclick="goCadastroSub('safras')">Safras</button>
+      <button class="subnavBtn ${D.cadastroSub==='pessoas'?'active':''}" onclick="goCadastroSub('pessoas')">Pessoas e empresas</button>
+      <button class="subnavBtn ${D.cadastroSub==='contas'?'active':''}" onclick="goCadastroSub('contas')">Contas</button>
+      <button class="subnavBtn ${D.cadastroSub==='categorias'?'active':''}" onclick="goCadastroSub('categorias')">Categorias</button>
+    </div>
+    <div id="cadastroContent"></div>`;
+}
+async function renderCadastros(){
+  renderCadastrosShell();
+  const c = document.getElementById('cadastroContent');
+  if (D.cadastroSub==='fazendas') c.innerHTML = tplCadastroFazendas();
+  if (D.cadastroSub==='safras') c.innerHTML = tplCadastroSafras();
+  if (D.cadastroSub==='pessoas') c.innerHTML = tplCadastroPessoas();
+  if (D.cadastroSub==='categorias') c.innerHTML = tplCadastroCategorias();
+  if (D.cadastroSub==='contas'){
+    c.innerHTML = `<div class="empty">Calculando saldos...</div>`;
+    c.innerHTML = await tplCadastroContas();
+  }
+}
+
+// ---------- Cadastro: Fazendas ----------
+function tplCadastroFazendas(){
+  return `
     <div class="card">
-      <div class="cardHead"><h3>Contas cadastradas</h3><button class="btn small" onclick="openModal('ovConta')">+ Nova conta</button></div>
-      ${D.contas.length ? `<table><thead><tr><th>Nome</th><th></th></tr></thead><tbody>
-        ${D.contas.map(c=>`<tr><td>${esc(c.nome)}</td><td><button class="iconBtn" onclick="deleteConta('${c.id}')">Excluir</button></td></tr>`).join('')}
-      </tbody></table>` : `<div class="empty"><b>Nenhuma conta cadastrada</b>Cadastre as contas usadas na fazenda.</div>`}
+      <div class="cardHead"><h3>Fazendas</h3><button class="btn small" onclick="openFazendaModal()">+ Nova fazenda</button></div>
+      ${D.fazendas.length ? `<table><thead><tr><th>Nome</th><th>Inscrição</th><th>Situação</th><th>Titular</th><th>HA</th><th>Status</th><th></th></tr></thead><tbody>
+        ${D.fazendas.map(f=>`<tr>
+          <td><b>${esc(f.nome)}</b></td>
+          <td>${esc(f.inscricao||'—')}</td>
+          <td><span class="badge ${f.tipo==='propria'?'entregue':'pendente'}">${f.tipo==='propria'?'Própria':'Arrendada'}</span></td>
+          <td>${esc(f.titular||'—')}</td>
+          <td>${f.ha||'—'}</td>
+          <td><span class="badge ${f.ativo?'entregue':'pendente'}">${f.ativo?'Ativa':'Inativa'}</span></td>
+          <td>
+            <button class="iconBtn" onclick="openFazendaModal('${f.id}')">Editar</button>
+            <button class="iconBtn" onclick="toggleFazendaAtivo('${f.id}', ${!!f.ativo})">${f.ativo?'Inativar':'Ativar'}</button>
+            <button class="iconBtn" onclick="deleteFazendaCad('${f.id}')">Excluir</button>
+          </td>
+        </tr>`).join('')}</tbody></table>`
+        : `<div class="empty"><b>Nenhuma fazenda cadastrada</b>Cadastre a primeira propriedade para começar.</div>`}
     </div>`;
 }
-async function saveConta(){
-  const nome = document.getElementById('ctaNome').value.trim();
-  if (!nome){ alert('Informe o nome da conta.'); return; }
-  await sb.from('faz_contas').insert({ nome });
-  document.getElementById('ctaNome').value = '';
-  closeModal('ovConta');
-  const { data } = await sb.from('faz_contas').select('*').order('nome');
-  D.contas = data || [];
-  goTab('contas');
+function openFazendaModal(id){
+  document.getElementById('fzId').value = id||'';
+  document.getElementById('fzModalTitle').textContent = id ? 'Editar Fazenda' : 'Nova Fazenda';
+  const f = D.fazendas.find(x=>x.id===id) || {};
+  document.getElementById('fzNome').value = f.nome||'';
+  document.getElementById('fzInscricao').value = f.inscricao||'';
+  document.getElementById('fzHa').value = f.ha||'';
+  document.getElementById('fzTipo').value = f.tipo||'propria';
+  document.getElementById('fzTitular').value = f.titular||'';
+  openModal('ovFazenda');
 }
-async function deleteConta(id){
-  if (!confirm('Excluir esta conta?')) return;
-  await sb.from('faz_contas').delete().eq('id', id);
-  const { data } = await sb.from('faz_contas').select('*').order('nome');
-  D.contas = data || [];
-  goTab('contas');
+async function saveFazenda(){
+  const id = document.getElementById('fzId').value;
+  const payload = {
+    nome: document.getElementById('fzNome').value.trim(),
+    inscricao: document.getElementById('fzInscricao').value.trim(),
+    ha: Number(document.getElementById('fzHa').value)||0,
+    tipo: document.getElementById('fzTipo').value,
+    titular: document.getElementById('fzTitular').value.trim(),
+    updated_at: new Date().toISOString()
+  };
+  if (!payload.nome){ alert('Informe o nome da fazenda.'); return; }
+  if (id) await sb.from('faz_fazendas').update(payload).eq('id', id);
+  else await sb.from('faz_fazendas').insert(payload);
+  closeModal('ovFazenda');
+  await loadBase();
+  goCadastroSub('fazendas');
+}
+async function toggleFazendaAtivo(id, current){
+  await sb.from('faz_fazendas').update({ ativo: !current, updated_at:new Date().toISOString() }).eq('id', id);
+  await loadBase(); goCadastroSub('fazendas');
+}
+async function deleteFazendaCad(id){
+  if (!confirm('Excluir definitivamente esta fazenda? Isso só é possível se ela não estiver vinculada a nenhum lançamento.')) return;
+  const ok = await tryDelete('faz_fazendas', id);
+  if (ok){ await loadBase(); goCadastroSub('fazendas'); }
+}
+
+// ---------- Cadastro: Safras ----------
+function tplCadastroSafras(){
+  return `
+    <div class="card">
+      <div class="cardHead"><h3>Safras</h3><button class="btn small" onclick="openSafraModal()">+ Nova safra</button></div>
+      ${D.safras.length ? `<table><thead><tr><th>Nome</th><th>Produto</th><th>Período</th><th>Status</th><th>Fazendas</th><th>Habilitada</th><th></th></tr></thead><tbody>
+        ${D.safras.map(s=>{
+          const fazNomes = getFazendasDaSafra(s.id).map(f=>f.nome).join(', ') || '—';
+          const statusBadge = s.status==='Ativa' ? 'entregue' : s.status==='Encerrada' ? 'liquidado' : 'pendente';
+          return `<tr>
+            <td><b>${esc(s.nome)}</b></td>
+            <td>${esc(s.produto_principal||'—')}</td>
+            <td>${esc(s.ano_periodo||'—')}</td>
+            <td><span class="badge ${statusBadge}">${esc(s.status)}</span></td>
+            <td>${esc(fazNomes)}</td>
+            <td><span class="badge ${s.ativo?'entregue':'pendente'}">${s.ativo?'Habilitada':'Inativada'}</span></td>
+            <td>
+              <button class="iconBtn" onclick="openSafraModal('${s.id}')">Editar</button>
+              <button class="iconBtn" onclick="toggleSafraAtivo('${s.id}', ${!!s.ativo})">${s.ativo?'Inativar':'Ativar'}</button>
+              <button class="iconBtn" onclick="deleteSafraCad('${s.id}')">Excluir</button>
+            </td>
+          </tr>`;
+        }).join('')}</tbody></table>`
+        : `<div class="empty"><b>Nenhuma safra cadastrada</b>Crie a primeira safra.</div>`}
+    </div>`;
+}
+function openSafraModal(id){
+  if (!D.fazendas.length){ alert('Cadastre uma fazenda antes de criar uma safra.'); return; }
+  document.getElementById('sfId').value = id||'';
+  document.getElementById('sfModalTitle').textContent = id ? 'Editar Safra' : 'Nova Safra';
+  const s = D.safras.find(x=>x.id===id) || {};
+  document.getElementById('sfNome').value = s.nome||'';
+  document.getElementById('sfProduto').value = s.produto_principal||'';
+  document.getElementById('sfAnoPeriodo').value = s.ano_periodo||'';
+  document.getElementById('sfDataIni').value = s.data_inicial||'';
+  document.getElementById('sfDataFim').value = s.data_final||'';
+  document.getElementById('sfStatus').value = s.status||'Planejamento';
+  const linked = id ? (D.safraFazendas[id]||[]) : [];
+  document.getElementById('sfFazendasList').innerHTML = D.fazendas.map(f=>`
+    <label><input type="checkbox" class="sfFazChk" value="${f.id}" ${linked.includes(f.id)?'checked':''}> ${esc(f.nome)}</label>`).join('');
+  openModal('ovSafra');
+}
+async function saveSafra(){
+  const id = document.getElementById('sfId').value;
+  const nome = document.getElementById('sfNome').value.trim();
+  const produto_principal = document.getElementById('sfProduto').value.trim();
+  const ano_periodo = document.getElementById('sfAnoPeriodo').value.trim();
+  const data_inicial = document.getElementById('sfDataIni').value || null;
+  const data_final = document.getElementById('sfDataFim').value || null;
+  const status = document.getElementById('sfStatus').value;
+  const checked = Array.from(document.querySelectorAll('.sfFazChk:checked')).map(c=>c.value);
+  if (!nome){ alert('Informe o nome da safra.'); return; }
+  if (!checked.length){ alert('Selecione ao menos uma fazenda para vincular à safra.'); return; }
+
+  const payload = { nome, produto_principal, ano_periodo, data_inicial, data_final, status, fazenda_id: checked[0], updated_at: new Date().toISOString() };
+  let safraId = id;
+  if (id){
+    const { error } = await sb.from('faz_safras').update(payload).eq('id', id);
+    if (error){ alert('Erro ao salvar a safra: '+error.message); return; }
+    await sb.from('faz_safra_fazendas').delete().eq('safra_id', id);
+  } else {
+    const { data, error } = await sb.from('faz_safras').insert(payload).select();
+    if (error){ alert('Erro ao salvar a safra: '+error.message); return; }
+    safraId = data[0].id;
+  }
+  const rows = checked.map(fid=>({ safra_id: safraId, fazenda_id: fid }));
+  await sb.from('faz_safra_fazendas').insert(rows);
+  closeModal('ovSafra');
+  if (!D.safraAtual){ D.safraAtual = safraId; persistSafra(); }
+  await loadBase();
+  goCadastroSub('safras');
+}
+async function toggleSafraAtivo(id, current){
+  await sb.from('faz_safras').update({ ativo: !current, updated_at:new Date().toISOString() }).eq('id', id);
+  await loadBase(); goCadastroSub('safras');
+}
+async function deleteSafraCad(id){
+  if (!confirm('Excluir definitivamente esta safra? Isso só é possível se não houver lançamentos ou contratos vinculados.')) return;
+  const ok = await tryDelete('faz_safras', id);
+  if (ok){
+    if (D.safraAtual===id){ D.safraAtual=null; persistSafra(); }
+    await loadBase();
+  }
+  goCadastroSub('safras');
+}
+
+// ---------- Cadastro: Pessoas ----------
+function relLabel(v){ return v==='fornecedor' ? 'Recebedor/Fornecedor' : v==='pagador' ? 'Pagador/Cliente' : 'Ambos'; }
+function tplCadastroPessoas(){
+  return `
+    <div class="card">
+      <div class="cardHead"><h3>Pessoas e empresas</h3><button class="btn small" onclick="openPessoaModal()">+ Novo cadastro</button></div>
+      ${D.pessoas.length ? `<table><thead><tr><th>Nome</th><th>Documento</th><th>Tipo</th><th>Relacionamento</th><th>Telefone</th><th>Status</th><th></th></tr></thead><tbody>
+        ${D.pessoas.map(p=>`<tr>
+          <td><b>${esc(p.nome)}</b>${p.nome_fantasia?` <span style="color:var(--muted)">(${esc(p.nome_fantasia)})</span>`:''}</td>
+          <td>${esc(p.documento||'—')}</td>
+          <td>${p.tipo_pessoa==='juridica'?'Jurídica':'Física'}</td>
+          <td>${relLabel(p.tipo_relacionamento)}</td>
+          <td>${esc(p.telefone||'—')}</td>
+          <td><span class="badge ${p.ativo?'entregue':'pendente'}">${p.ativo?'Ativo':'Inativo'}</span></td>
+          <td>
+            <button class="iconBtn" onclick="openPessoaModal('${p.id}')">Editar</button>
+            <button class="iconBtn" onclick="togglePessoaAtivo('${p.id}', ${!!p.ativo})">${p.ativo?'Inativar':'Ativar'}</button>
+            <button class="iconBtn" onclick="deletePessoaCad('${p.id}')">Excluir</button>
+          </td>
+        </tr>`).join('')}</tbody></table>`
+        : `<div class="empty"><b>Nenhuma pessoa/empresa cadastrada</b>Cadastre fornecedores e clientes aqui.</div>`}
+    </div>`;
+}
+function openPessoaModal(id){
+  document.getElementById('psId').value = id||'';
+  document.getElementById('psModalTitle').textContent = id ? 'Editar Cadastro' : 'Novo Cadastro';
+  const p = D.pessoas.find(x=>x.id===id) || {};
+  document.getElementById('psNome').value = p.nome||'';
+  document.getElementById('psFantasia').value = p.nome_fantasia||'';
+  document.getElementById('psDocumento').value = p.documento||'';
+  document.getElementById('psTipoPessoa').value = p.tipo_pessoa||'fisica';
+  document.getElementById('psTipoRelacionamento').value = p.tipo_relacionamento||'ambos';
+  document.getElementById('psTelefone').value = p.telefone||'';
+  document.getElementById('psObservacoes').value = p.observacoes||'';
+  openModal('ovPessoa');
+}
+async function savePessoa(){
+  const id = document.getElementById('psId').value;
+  const payload = {
+    nome: document.getElementById('psNome').value.trim(),
+    nome_fantasia: document.getElementById('psFantasia').value.trim(),
+    documento: document.getElementById('psDocumento').value.trim(),
+    tipo_pessoa: document.getElementById('psTipoPessoa').value,
+    tipo_relacionamento: document.getElementById('psTipoRelacionamento').value,
+    telefone: document.getElementById('psTelefone').value.trim(),
+    observacoes: document.getElementById('psObservacoes').value.trim(),
+    updated_at: new Date().toISOString()
+  };
+  if (!payload.nome){ alert('Informe o nome.'); return; }
+  if (id) await sb.from('faz_pessoas').update(payload).eq('id', id);
+  else await sb.from('faz_pessoas').insert(payload);
+  closeModal('ovPessoa');
+  await loadBase();
+  goCadastroSub('pessoas');
+}
+async function togglePessoaAtivo(id, current){
+  await sb.from('faz_pessoas').update({ ativo: !current, updated_at:new Date().toISOString() }).eq('id', id);
+  await loadBase(); goCadastroSub('pessoas');
+}
+async function deletePessoaCad(id){
+  if (!confirm('Excluir definitivamente este cadastro? Isso só é possível se não houver lançamentos vinculados.')) return;
+  const ok = await tryDelete('faz_pessoas', id);
+  if (ok){ await loadBase(); goCadastroSub('pessoas'); }
+}
+
+// ---------- Cadastro: Contas ----------
+function tipoContaLabel(v){
+  return {corrente:'Conta corrente', poupanca:'Poupança', dinheiro:'Dinheiro', investimento:'Investimento', outra:'Outra'}[v] || v || '—';
+}
+async function tplCadastroContas(){
+  const { data: allLanc } = await sb.from('faz_lancamentos').select('conta_id,tipo,valor_total,status');
+  const lanc = allLanc || [];
+  const rows = D.contas.map(c=>{
+    const recebido = lanc.filter(l=>l.conta_id===c.id && l.tipo==='receita').reduce((a,b)=>a+Number(b.valor_total||0),0);
+    const pago = lanc.filter(l=>l.conta_id===c.id && l.tipo==='despesa' && l.status==='pago').reduce((a,b)=>a+Number(b.valor_total||0),0);
+    const saldoProprio = Number(c.saldo_inicial||0) + recebido - pago;
+    const limite = c.possui_cheque_especial ? Number(c.limite_cheque_especial||0) : 0;
+    const limiteUtilizado = saldoProprio < 0 ? Math.min(-saldoProprio, limite) : 0;
+    const saldoDisponivel = saldoProprio + limite;
+    return { c, saldoProprio, limite, limiteUtilizado, saldoDisponivel };
+  });
+  return `
+    <div class="card">
+      <div class="cardHead"><h3>Contas bancárias</h3><button class="btn small" onclick="openContaModal()">+ Nova conta</button></div>
+      ${rows.length ? `<table><thead><tr><th>Conta</th><th>Instituição</th><th>Tipo</th><th>Saldo próprio</th><th>Cheque especial</th><th>Limite utilizado</th><th>Disponível</th><th>Status</th><th></th></tr></thead><tbody>
+        ${rows.map(r=>`<tr>
+          <td><b>${esc(r.c.nome)}</b>${r.c.numero_conta?` <span style="color:var(--muted); font-size:11.5px;">(${esc(r.c.numero_conta)})</span>`:''}</td>
+          <td>${esc(r.c.instituicao||'—')}</td>
+          <td>${tipoContaLabel(r.c.tipo_conta)}</td>
+          <td style="${r.saldoProprio<0?'color:var(--vermelho); font-weight:600;':''}">${fmtBRL(r.saldoProprio)}</td>
+          <td>${r.c.possui_cheque_especial ? fmtBRL(r.limite) : '—'}</td>
+          <td>${r.limiteUtilizado>0 ? fmtBRL(r.limiteUtilizado) : '—'}</td>
+          <td><b>${fmtBRL(r.saldoDisponivel)}</b></td>
+          <td><span class="badge ${r.c.ativo?'entregue':'pendente'}">${r.c.ativo?'Ativa':'Inativa'}</span></td>
+          <td>
+            <button class="iconBtn" onclick="openContaModal('${r.c.id}')">Editar</button>
+            <button class="iconBtn" onclick="toggleContaAtivo('${r.c.id}', ${!!r.c.ativo})">${r.c.ativo?'Inativar':'Ativar'}</button>
+            <button class="iconBtn" onclick="deleteContaCad('${r.c.id}')">Excluir</button>
+          </td>
+        </tr>`).join('')}</tbody></table>`
+        : `<div class="empty"><b>Nenhuma conta cadastrada</b>Cadastre as contas usadas na fazenda.</div>`}
+    </div>`;
+}
+function onCtaChequeChange(){
+  const v = document.getElementById('ctaPossuiCheque').value;
+  document.getElementById('ctaLimiteWrap').style.display = v==='sim' ? 'block' : 'none';
+}
+function openContaModal(id){
+  document.getElementById('ctaId').value = id||'';
+  document.getElementById('ctaModalTitle').textContent = id ? 'Editar Conta' : 'Nova Conta';
+  const c = D.contas.find(x=>x.id===id) || {};
+  document.getElementById('ctaNome').value = c.nome||'';
+  document.getElementById('ctaInstituicao').value = c.instituicao||'';
+  document.getElementById('ctaTipo').value = c.tipo_conta||'corrente';
+  document.getElementById('ctaNumero').value = c.numero_conta||'';
+  document.getElementById('ctaAgencia').value = c.agencia||'';
+  document.getElementById('ctaSaldoInicial').value = c.saldo_inicial||0;
+  document.getElementById('ctaSaldoInicial').dataset.original = c.saldo_inicial||0;
+  document.getElementById('ctaDataSaldo').value = c.data_saldo_inicial || new Date().toISOString().slice(0,10);
+  document.getElementById('ctaPossuiCheque').value = c.possui_cheque_especial ? 'sim' : 'nao';
+  document.getElementById('ctaLimiteCheque').value = c.limite_cheque_especial||0;
+  onCtaChequeChange();
+  openModal('ovConta');
+}
+async function saveConta(){
+  const id = document.getElementById('ctaId').value;
+  const nome = document.getElementById('ctaNome').value.trim();
+  const saldoInicialNovo = Number(document.getElementById('ctaSaldoInicial').value)||0;
+  const saldoOriginal = Number(document.getElementById('ctaSaldoInicial').dataset.original||0);
+  if (!nome){ alert('Informe o nome da conta.'); return; }
+  if (id && saldoInicialNovo !== saldoOriginal){
+    const ok = confirm('Alterar o saldo inicial afeta todo o histórico desta conta. Deseja continuar?');
+    if (!ok) return;
+  }
+  const possuiCheque = document.getElementById('ctaPossuiCheque').value==='sim';
+  const payload = {
+    nome,
+    instituicao: document.getElementById('ctaInstituicao').value.trim(),
+    tipo_conta: document.getElementById('ctaTipo').value,
+    numero_conta: document.getElementById('ctaNumero').value.trim(),
+    agencia: document.getElementById('ctaAgencia').value.trim(),
+    saldo_inicial: saldoInicialNovo,
+    data_saldo_inicial: document.getElementById('ctaDataSaldo').value || null,
+    possui_cheque_especial: possuiCheque,
+    limite_cheque_especial: possuiCheque ? (Number(document.getElementById('ctaLimiteCheque').value)||0) : 0,
+    updated_at: new Date().toISOString()
+  };
+  if (id) await sb.from('faz_contas').update(payload).eq('id', id);
+  else await sb.from('faz_contas').insert(payload);
+  closeModal('ovConta');
+  await loadBase();
+  goCadastroSub('contas');
+}
+async function toggleContaAtivo(id, current){
+  await sb.from('faz_contas').update({ ativo: !current, updated_at:new Date().toISOString() }).eq('id', id);
+  await loadBase(); goCadastroSub('contas');
+}
+async function deleteContaCad(id){
+  if (!confirm('Excluir definitivamente esta conta? Isso só é possível se não houver lançamentos vinculados.')) return;
+  const ok = await tryDelete('faz_contas', id);
+  if (ok){ await loadBase(); goCadastroSub('contas'); }
+}
+
+// ---------- Cadastro: Categorias ----------
+function aplicavelLabel(v){ return v==='entrada'?'Entrada': v==='saida'?'Saída':'Ambas'; }
+function onCategoriaSearch(v){ D.categoriaSearch = v; renderCadastros(); }
+function tplCadastroCategorias(){
+  const q = (D.categoriaSearch||'').toLowerCase();
+  const list = D.categorias.filter(c=>!q || c.nome.toLowerCase().includes(q))
+    .sort((a,b)=>(a.tipo_financeiro).localeCompare(b.tipo_financeiro) || (a.ordem||0)-(b.ordem||0));
+  return `
+    <div class="card">
+      <div class="cardHead">
+        <h3>Categorias</h3>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input id="catSearch" placeholder="Pesquisar categoria..." style="padding:8px 12px; border-radius:8px; border:1.5px solid var(--linha); font-size:13px;" value="${esc(D.categoriaSearch||'')}" oninput="onCategoriaSearch(this.value)">
+          <button class="btn small" onclick="openCategoriaModal()">+ Nova categoria</button>
+        </div>
+      </div>
+      ${list.length ? `<table><thead><tr><th>Nome</th><th>Tipo financeiro</th><th>Aplicável em</th><th>Ordem</th><th>Status</th><th></th></tr></thead><tbody>
+        ${list.map(c=>`<tr>
+          <td><b>${esc(c.nome)}</b></td>
+          <td>${esc(c.tipo_financeiro)}</td>
+          <td>${aplicavelLabel(c.aplicavel_em)}</td>
+          <td>${c.ordem||0}</td>
+          <td><span class="badge ${c.ativo?'entregue':'pendente'}">${c.ativo?'Ativa':'Inativa'}</span></td>
+          <td>
+            <button class="iconBtn" onclick="openCategoriaModal('${c.id}')">Editar</button>
+            <button class="iconBtn" onclick="toggleCategoriaAtivo('${c.id}', ${!!c.ativo})">${c.ativo?'Inativar':'Ativar'}</button>
+            <button class="iconBtn" onclick="deleteCategoriaCad('${c.id}')">Excluir</button>
+            <button class="iconBtn" onclick="openSubcategoriaModal(null,'${c.id}')">+ Subcategoria</button>
+          </td>
+        </tr>${subcategoriasDe(c.id).map(sc=>`<tr style="background:var(--creme2)">
+          <td style="padding-left:26px; color:var(--muted);">↳ ${esc(sc.nome)}</td>
+          <td colspan="3"></td>
+          <td><span class="badge ${sc.ativo?'entregue':'pendente'}">${sc.ativo?'Ativa':'Inativa'}</span></td>
+          <td>
+            <button class="iconBtn" onclick="openSubcategoriaModal('${sc.id}','${c.id}')">Editar</button>
+            <button class="iconBtn" onclick="toggleSubcategoriaAtivo('${sc.id}', ${!!sc.ativo})">${sc.ativo?'Inativar':'Ativar'}</button>
+            <button class="iconBtn" onclick="deleteSubcategoriaCad('${sc.id}')">Excluir</button>
+          </td>
+        </tr>`).join('')}`).join('')}</tbody></table>`
+        : `<div class="empty"><b>Nenhuma categoria encontrada</b>Ajuste a pesquisa ou cadastre uma nova categoria.</div>`}
+    </div>`;
+}
+function openCategoriaModal(id){
+  document.getElementById('catId').value = id||'';
+  document.getElementById('catModalTitle').textContent = id ? 'Editar Categoria' : 'Nova Categoria';
+  const c = D.categorias.find(x=>x.id===id) || {};
+  document.getElementById('catNome').value = c.nome||'';
+  document.getElementById('catTipoFinanceiro').value = c.tipo_financeiro||'Receita';
+  document.getElementById('catAplicavelEm').value = c.aplicavel_em||'ambas';
+  document.getElementById('catOrdem').value = c.ordem||0;
+  openModal('ovCategoria');
+}
+async function saveCategoria(){
+  const id = document.getElementById('catId').value;
+  const payload = {
+    nome: document.getElementById('catNome').value.trim(),
+    tipo_financeiro: document.getElementById('catTipoFinanceiro').value,
+    aplicavel_em: document.getElementById('catAplicavelEm').value,
+    ordem: Number(document.getElementById('catOrdem').value)||0,
+    updated_at: new Date().toISOString()
+  };
+  if (!payload.nome){ alert('Informe o nome da categoria.'); return; }
+  let res;
+  if (id) res = await sb.from('faz_categorias').update(payload).eq('id', id);
+  else res = await sb.from('faz_categorias').insert(payload);
+  if (res.error){
+    if (res.error.code === '23505') alert('Já existe uma categoria com esse nome para este tipo financeiro.');
+    else alert('Erro ao salvar categoria: '+res.error.message);
+    return;
+  }
+  closeModal('ovCategoria');
+  await loadBase();
+  goCadastroSub('categorias');
+}
+async function toggleCategoriaAtivo(id, current){
+  await sb.from('faz_categorias').update({ ativo: !current, updated_at:new Date().toISOString() }).eq('id', id);
+  await loadBase(); goCadastroSub('categorias');
+}
+async function deleteCategoriaCad(id){
+  if (!confirm('Excluir definitivamente esta categoria? Isso só é possível se não houver lançamentos vinculados.')) return;
+  const ok = await tryDelete('faz_categorias', id);
+  if (ok){ await loadBase(); goCadastroSub('categorias'); }
+}
+function openSubcategoriaModal(id, categoriaId){
+  document.getElementById('subId').value = id||'';
+  document.getElementById('subCategoriaId').value = categoriaId;
+  document.getElementById('subModalTitle').textContent = id ? 'Editar Subcategoria' : 'Nova Subcategoria';
+  const s = D.subcategorias.find(x=>x.id===id) || {};
+  document.getElementById('subNome').value = s.nome||'';
+  document.getElementById('subOrdem').value = s.ordem||0;
+  openModal('ovSubcategoria');
+}
+async function saveSubcategoria(){
+  const id = document.getElementById('subId').value;
+  const categoria_id = document.getElementById('subCategoriaId').value;
+  const payload = {
+    categoria_id,
+    nome: document.getElementById('subNome').value.trim(),
+    ordem: Number(document.getElementById('subOrdem').value)||0,
+    updated_at: new Date().toISOString()
+  };
+  if (!payload.nome){ alert('Informe o nome da subcategoria.'); return; }
+  let res;
+  if (id) res = await sb.from('faz_subcategorias').update(payload).eq('id', id);
+  else res = await sb.from('faz_subcategorias').insert(payload);
+  if (res.error){
+    if (res.error.code === '23505') alert('Já existe uma subcategoria com esse nome nesta categoria.');
+    else alert('Erro ao salvar subcategoria: '+res.error.message);
+    return;
+  }
+  closeModal('ovSubcategoria');
+  await loadBase();
+  goCadastroSub('categorias');
+}
+async function toggleSubcategoriaAtivo(id, current){
+  await sb.from('faz_subcategorias').update({ ativo: !current, updated_at:new Date().toISOString() }).eq('id', id);
+  await loadBase(); goCadastroSub('categorias');
+}
+async function deleteSubcategoriaCad(id){
+  if (!confirm('Excluir definitivamente esta subcategoria? Isso só é possível se não houver lançamentos vinculados.')) return;
+  const ok = await tryDelete('faz_subcategorias', id);
+  if (ok){ await loadBase(); goCadastroSub('categorias'); }
 }
 
 // ================= INIT =================
