@@ -187,6 +187,14 @@ tr:last-child td{border-bottom:none;}
 
 <!-- ============ MODALS ============ -->
 
+<div class="overlay" id="ovInatividade"><div class="modal" style="width:380px; text-align:center;">
+  <h3>Sessão inativa</h3>
+  <p style="color:var(--muted); font-size:13.5px; margin-bottom:16px;">Por segurança, sua sessão será encerrada em <b id="inatividadeCountdown">60</b> segundos por inatividade.</p>
+  <div class="modalActions">
+    <button class="btn" style="width:100%;" onclick="continuarConectado()">Continuar conectado</button>
+  </div>
+</div></div>
+
 <div class="overlay" id="ovFazenda"><div class="modal">
   <h3 id="fzModalTitle">Nova Fazenda</h3>
   <input type="hidden" id="fzId">
@@ -659,10 +667,12 @@ async function doLogin(){
   showApp();
 }
 async function doLogout(){
+  stopInactivityWatcher();
   await sb.auth.signOut();
   showLogin();
 }
 function showLogin(){
+  stopInactivityWatcher();
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('app').classList.remove('show');
 }
@@ -671,6 +681,53 @@ async function showApp(){
   document.getElementById('app').classList.add('show');
   await loadBase();
   await goTab('dashboard');
+  startInactivityWatcher();
+}
+
+// ================= INATIVIDADE (encerra a sessão automaticamente) =================
+const INACTIVITY_LIMIT_MS = 20*60*1000;   // 20 minutos sem atividade
+const INACTIVITY_WARNING_MS = 60*1000;    // aviso 60s antes de encerrar
+const INACTIVITY_EVENTS = ['mousemove','mousedown','keydown','scroll','touchstart','click'];
+let inactivityTimer = null;
+let inactivityCountdownInterval = null;
+function startInactivityWatcher(){
+  INACTIVITY_EVENTS.forEach(evt=>document.addEventListener(evt, onUserActivity, { passive:true }));
+  resetInactivityTimer();
+}
+function stopInactivityWatcher(){
+  INACTIVITY_EVENTS.forEach(evt=>document.removeEventListener(evt, onUserActivity));
+  clearTimeout(inactivityTimer);
+  clearInterval(inactivityCountdownInterval);
+  const ov = document.getElementById('ovInatividade');
+  if (ov) ov.classList.remove('show');
+}
+function onUserActivity(){
+  if (document.getElementById('ovInatividade').classList.contains('show')) return;
+  resetInactivityTimer();
+}
+function resetInactivityTimer(){
+  clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(showInactivityWarning, INACTIVITY_LIMIT_MS);
+}
+function showInactivityWarning(){
+  let secondsLeft = Math.floor(INACTIVITY_WARNING_MS/1000);
+  document.getElementById('inatividadeCountdown').textContent = secondsLeft;
+  openModal('ovInatividade');
+  clearInterval(inactivityCountdownInterval);
+  inactivityCountdownInterval = setInterval(()=>{
+    secondsLeft--;
+    document.getElementById('inatividadeCountdown').textContent = secondsLeft;
+    if (secondsLeft<=0){
+      clearInterval(inactivityCountdownInterval);
+      closeModal('ovInatividade');
+      doLogout();
+    }
+  }, 1000);
+}
+function continuarConectado(){
+  clearInterval(inactivityCountdownInterval);
+  closeModal('ovInatividade');
+  resetInactivityTimer();
 }
 
 // ================= PERSISTÊNCIA DE CONTEXTO (safra global) =================
