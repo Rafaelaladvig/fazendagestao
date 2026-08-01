@@ -61,7 +61,7 @@ input,select{font-family:'Poppins',sans-serif;}
 .pageDesc{color:var(--muted); font-size:13.5px; margin-bottom:20px;}
 
 .card{background:#fff; border:1px solid var(--linha); border-radius:14px; padding:20px; margin-bottom:18px; box-shadow:var(--shadow);}
-.cardHead{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;}
+.cardHead{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;}
 .cardHead h3{font-size:19px; color:var(--verde2); font-weight:600; font-family:'Poppins',sans-serif;}
 
 table{width:100%; border-collapse:collapse; font-size:13.5px;}
@@ -89,17 +89,26 @@ tr:last-child td{border-bottom:none;}
 .kpi .val.red{color:var(--vermelho);}
 .kpi .val.orange{color:var(--terracota);}
 
+/* filtros da aba Lançamentos */
+.filterBar{display:flex; flex-wrap:wrap; gap:12px; align-items:end;}
+.filterBar .grp{display:flex; flex-direction:column; min-width:140px;}
+.filterBar label{font-size:11px; color:var(--muted); font-weight:600; margin-bottom:5px; text-transform:uppercase; letter-spacing:.3px;}
+.filterBar select, .filterBar input{padding:8px 10px; border-radius:8px; border:1.5px solid var(--linha); font-size:13px; background:#fff;}
+
+/* checkbox de fazendas na safra */
+.chipList{max-height:190px; overflow-y:auto; border:1.5px solid var(--linha); border-radius:10px; padding:6px 12px;}
+.chipList label{display:flex; align-items:center; gap:9px; padding:8px 2px; font-size:13.5px; border-bottom:1px solid var(--linha);}
+.chipList label:last-child{border-bottom:none;}
+.chipList input[type=checkbox]{width:16px; height:16px;}
+
 /* modal */
 .overlay{display:none; position:fixed; inset:0; background:rgba(44,66,48,.45); align-items:center; justify-content:center; z-index:50; padding:20px;}
 .overlay.show{display:flex;}
 .modal{background:#fff; width:520px; max-width:100%; border-radius:16px; padding:26px 28px; max-height:88vh; overflow-y:auto;}
 .modal h3{font-size:21px; color:var(--verde2); margin-bottom:18px; font-weight:600; font-family:'Poppins',sans-serif;}
 .modalActions{display:flex; gap:10px; margin-top:20px;}
-.prodRow{display:flex; gap:8px; margin-bottom:8px; align-items:center;}
-.prodRow input{flex:1;}
-.prodRow .rm{background:var(--creme); color:var(--vermelho); border-radius:8px; padding:9px 11px; font-size:13px;}
-.addProdBtn{background:var(--creme); color:var(--verde2); padding:8px 13px; border-radius:8px; font-size:12.5px; font-weight:600; margin-bottom:14px;}
-.totalLine{display:flex; justify-content:space-between; padding:10px 4px; font-size:15px; font-weight:600; color:var(--verde2); border-top:1.5px dashed var(--linha); margin-top:6px;}
+.totalLine{display:flex; justify-content:space-between; padding:10px 4px; font-size:15px; font-weight:600; color:var(--verde2); border-top:1.5px dashed var(--linha); margin:6px 0 14px;}
+.saldoBox{font-size:12.5px; color:var(--verde2); background:var(--creme); border-radius:8px; padding:9px 12px; margin-top:8px;}
 
 @media(max-width:820px){
   #app.show{grid-template-columns:1fr;}
@@ -108,6 +117,7 @@ tr:last-child td{border-bottom:none;}
   .navItem{white-space:nowrap;}
   .main{padding:18px;}
   .grid2,.grid3{grid-template-columns:1fr;}
+  .filterBar .grp{min-width:120px; flex:1;}
 }
 </style>
 </head>
@@ -138,33 +148,31 @@ tr:last-child td{border-bottom:none;}
     <div class="sub">Gestão Financeira</div>
     <div class="navItem active" data-tab="dashboard" onclick="goTab('dashboard')">📊 Dashboard</div>
     <div class="navItem" data-tab="fazendas" onclick="goTab('fazendas')">🏡 Fazendas</div>
-    <div class="navItem" data-tab="despesas" onclick="goTab('despesas')">📤 Despesas</div>
-    <div class="navItem" data-tab="receitas" onclick="goTab('receitas')">📥 Receitas</div>
+    <div class="navItem" data-tab="lancamentos" onclick="goTab('lancamentos')">💱 Lançamentos</div>
     <div class="navItem" data-tab="contratos" onclick="goTab('contratos')">📄 Contratos</div>
     <div class="navItem" data-tab="contas" onclick="goTab('contas')">🏦 Contas</div>
     <button class="logout" onclick="doLogout()">← Sair</button>
   </div>
 
   <div class="main">
-    <!-- topbar: fazenda / safra selector -->
+    <!-- topbar: safra global + filtro secundário de fazenda -->
     <div class="topbar">
       <div class="grp">
-        <label>Fazenda</label>
-        <select id="selFazenda" onchange="onFazendaChange()"></select>
-      </div>
-      <div class="grp">
-        <label>Safra</label>
+        <label>Safra (contexto global)</label>
         <select id="selSafra" onchange="onSafraChange()"></select>
       </div>
       <button class="btn small" onclick="openSafraModal()">+ Nova Safra</button>
+      <div class="grp">
+        <label>Fazenda (filtro)</label>
+        <select id="selFazendaFiltro" onchange="onFazendaFiltroChange()"></select>
+      </div>
       <div class="spacer"></div>
       <div id="safraStatusTag"></div>
     </div>
 
     <div id="tab-dashboard" class="tabPane"></div>
     <div id="tab-fazendas" class="tabPane" style="display:none"></div>
-    <div id="tab-despesas" class="tabPane" style="display:none"></div>
-    <div id="tab-receitas" class="tabPane" style="display:none"></div>
+    <div id="tab-lancamentos" class="tabPane" style="display:none"></div>
     <div id="tab-contratos" class="tabPane" style="display:none"></div>
     <div id="tab-contas" class="tabPane" style="display:none"></div>
   </div>
@@ -193,10 +201,13 @@ tr:last-child td{border-bottom:none;}
 
 <div class="overlay" id="ovSafra"><div class="modal">
   <h3>Nova Safra</h3>
-  <div class="field"><label>Fazenda</label><select id="sfFazenda"></select></div>
   <div class="field"><label>Nome da safra</label><input id="sfNome" placeholder="Ex: Soja 25/26"></div>
   <div class="field"><label>Status</label>
     <select id="sfStatus"><option value="ativa">Ativa</option><option value="encerrada">Encerrada</option></select>
+  </div>
+  <div class="field">
+    <label>Fazendas envolvidas nesta safra</label>
+    <div id="sfFazendasList" class="chipList"></div>
   </div>
   <div class="modalActions">
     <button class="btn secondary" onclick="closeModal('ovSafra')">Cancelar</button>
@@ -204,29 +215,57 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div></div>
 
+<!-- Despesa -->
 <div class="overlay" id="ovDespesa"><div class="modal">
   <h3 id="dsModalTitle">Nova Despesa</h3>
   <input type="hidden" id="dsId">
   <div class="grid2">
-    <div class="field"><label>Nº da nota</label><input id="dsNota" placeholder="Nº nota fiscal"></div>
-    <div class="field"><label>Fornecedor</label><input id="dsFornecedor" placeholder="Fornecedor"></div>
+    <div class="field"><label>Data</label><input id="dsData" type="date"></div>
+    <div class="field"><label>Categoria</label>
+      <select id="dsCategoriaGrupo" onchange="onDsCategoriaChange()">
+        <option value="Despesa">Despesa</option>
+        <option value="Investimento">Investimento</option>
+        <option value="Financiamento">Financiamento</option>
+      </select>
+    </div>
   </div>
+  <div class="field"><label>Subcategoria</label><select id="dsSubcategoria"></select></div>
+  <div class="field" id="dsTipoWrap" style="display:none">
+    <label>Tipo</label>
+    <select id="dsTipo"><option value="fixa">Fixa</option><option value="variavel">Variável</option></select>
+  </div>
+  <div class="field"><label>Fazenda</label><select id="dsFazenda"></select></div>
+  <div class="field"><label>Descrição / produto</label><input id="dsDescricao" placeholder="Descreva a despesa"></div>
+  <div class="grid2">
+    <div class="field"><label>Quantidade</label><input id="dsQtd" type="number" step="0.01" oninput="calcDespesaTotal()"></div>
+    <div class="field"><label>Valor unitário (R$)</label><input id="dsValorUn" type="number" step="0.01" oninput="calcDespesaTotal()"></div>
+  </div>
+  <div class="totalLine"><span>Valor total</span><span id="dsTotalDisplay">R$ 0,00</span></div>
   <div class="field">
-    <label>Produtos da nota</label>
-    <div id="dsProdutos"></div>
-    <button class="addProdBtn" onclick="addProdutoRow()">+ Adicionar produto</button>
+    <label>Fornecedor (opcional)</label>
+    <div style="display:flex; gap:8px;">
+      <select id="dsFornecedor" style="flex:1"></select>
+      <button type="button" class="btn small secondary" style="width:auto" onclick="openFornecedorQuick()">+</button>
+    </div>
   </div>
   <div class="grid2">
-    <div class="field"><label>Tipo</label>
-      <select id="dsTipo"><option value="variavel">Variável</option><option value="fixa">Fixa</option></select>
-    </div>
-    <div class="field"><label>Categoria</label><input id="dsCategoria" placeholder="Ex: Insumos, Combustível..."></div>
+    <div class="field"><label>Conta de pagamento</label><select id="dsConta"></select></div>
+    <div class="field"><label>Nº da nota (opcional)</label><input id="dsNota" placeholder="Nº nota"></div>
   </div>
-  <div class="field"><label>Data de vencimento</label><input id="dsVencimento" type="date"></div>
-  <div class="totalLine"><span>Valor total</span><span id="dsTotalDisplay">R$ 0,00</span></div>
+  <div class="field"><label>Data de vencimento (opcional)</label><input id="dsVencimento" type="date"></div>
   <div class="modalActions">
     <button class="btn secondary" onclick="closeModal('ovDespesa')">Cancelar</button>
     <button class="btn" onclick="saveDespesa()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="ovFornecedorQuick"><div class="modal" style="width:380px">
+  <h3>Novo Fornecedor</h3>
+  <div class="field"><label>Nome</label><input id="fnNome" placeholder="Nome do fornecedor"></div>
+  <div class="field"><label>CPF/CNPJ</label><input id="fnDocumento" placeholder="Documento"></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovFornecedorQuick')">Cancelar</button>
+    <button class="btn" onclick="saveFornecedorQuick()">Salvar</button>
   </div>
 </div></div>
 
@@ -241,34 +280,62 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div></div>
 
+<!-- Receita -->
 <div class="overlay" id="ovReceita"><div class="modal">
   <h3 id="rcModalTitle">Nova Receita</h3>
   <input type="hidden" id="rcId">
-  <div class="field"><label>Produto</label><input id="rcProduto" placeholder="Ex: Soja"></div>
-  <div class="field"><label>Safra do produto</label><select id="rcSafra"></select></div>
   <div class="grid2">
-    <div class="field"><label>Quantidade (sacas)</label><input id="rcQtd" type="number" step="0.01" oninput="calcReceitaTotal()"></div>
+    <div class="field"><label>Data</label><input id="rcData" type="date"></div>
+    <div class="field"><label>Categoria</label>
+      <select id="rcCategoriaGrupo" onchange="onRcCategoriaChange()">
+        <option value="Receita">Receita</option>
+        <option value="Investimento">Investimento</option>
+        <option value="Financiamento">Financiamento</option>
+      </select>
+    </div>
+  </div>
+  <div class="field"><label>Subcategoria</label><select id="rcSubcategoria" onchange="onRcSubcategoriaChange()"></select></div>
+  <div class="field" id="rcOperacionalWrap" style="display:none">
+    <label>É receita operacional?</label>
+    <select id="rcOperacional"><option value="sim">Sim</option><option value="nao">Não</option></select>
+  </div>
+  <div class="field"><label>Fazenda</label><select id="rcFazenda"></select></div>
+  <div class="field"><label>Descrição / produto</label><input id="rcProduto" placeholder="Ex: Soja"></div>
+  <div class="grid2">
+    <div class="field"><label>Quantidade</label><input id="rcQtd" type="number" step="0.01" oninput="calcReceitaTotal()"></div>
     <div class="field"><label>Valor unitário (R$)</label><input id="rcValorUn" type="number" step="0.01" oninput="calcReceitaTotal()"></div>
   </div>
-  <div class="grid2">
-    <div class="field"><label>Conta de entrada</label><select id="rcConta"></select></div>
-    <div class="field"><label>Data</label><input id="rcData" type="date"></div>
-  </div>
   <div class="totalLine"><span>Valor total</span><span id="rcTotalDisplay">R$ 0,00</span></div>
+  <div class="grid2">
+    <div class="field"><label>Conta de recebimento</label><select id="rcConta"></select></div>
+    <div class="field"><label>Origem / pagador</label><input id="rcOrigemPagador" placeholder="Quem pagou"></div>
+  </div>
+  <div class="field" id="rcOrigemProdutoWrap" style="display:none">
+    <label>Origem do produto</label>
+    <select id="rcOrigemProduto" onchange="onRcOrigemProdutoChange()">
+      <option value="contrato">Contrato</option>
+      <option value="estoque">Estoque</option>
+    </select>
+  </div>
+  <div class="field" id="rcContratoWrap" style="display:none">
+    <label>Contrato</label>
+    <select id="rcContrato" onchange="onRcContratoChange()"></select>
+    <div class="saldoBox" id="rcSaldoBox"></div>
+  </div>
   <div class="modalActions">
     <button class="btn secondary" onclick="closeModal('ovReceita')">Cancelar</button>
     <button class="btn" onclick="saveReceita()">Salvar</button>
   </div>
 </div></div>
 
+<!-- Contrato -->
 <div class="overlay" id="ovContrato"><div class="modal">
   <h3 id="ctModalTitle">Novo Contrato</h3>
   <input type="hidden" id="ctId">
   <div class="grid2">
     <div class="field"><label>Nº do contrato</label><input id="ctNumero" placeholder="Nº contrato"></div>
-    <div class="field"><label>Produto</label><input id="ctProduto" placeholder="Ex: Soja 26/27"></div>
+    <div class="field"><label>Produto</label><input id="ctProduto" placeholder="Ex: Soja"></div>
   </div>
-  <div class="field"><label>Safra vinculada</label><select id="ctSafra"></select></div>
   <div class="grid2">
     <div class="field"><label>Quantidade (sacas)</label><input id="ctQtd" type="number" step="0.01" oninput="calcContratoTotal()"></div>
     <div class="field"><label>Valor unitário (R$)</label><input id="ctValorUn" type="number" step="0.01" oninput="calcContratoTotal()"></div>
@@ -302,13 +369,29 @@ const SB_URL = "https://ceqvwrzyqjpxvekapqto.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNlcXZ3cnp5cWpweHZla2FwcXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyNDU1MDUsImV4cCI6MjA5NzgyMTUwNX0.IJZlL7UT07KHHDRMpkkMShWIVQfQgcbZjSxWtpF3VvU";
 const sb = supabase.createClient(SB_URL, SB_KEY);
 
+// ================= CATEGORIAS / SUBCATEGORIAS =================
+const RECEITA_SUB = {
+  'Receita': ['Milho','Soja','Receitas financeiras','Outras receitas'],
+  'Investimento': ['Financeiro','Máquinas/equipamentos','Veículos'],
+  'Financiamento': ['Próprio','Terceiros']
+};
+const DESPESA_SUB = {
+  'Despesa': ['Alimentação','Pró-labore','Tarifas bancárias'],
+  'Investimento': ['Máquinas/equipamentos'],
+  'Financiamento': ['Financiamento de terceiros','Custeio']
+};
+
 // ================= STATE =================
-let D = { fazendas:[], safras:[], contas:[], despesas:[], receitas:[], contratos:[],
-          fazendaAtual:null, safraAtual:null, currentTab:'dashboard' };
-let prodRowCount = 0;
+let D = {
+  fazendas:[], safras:[], safraFazendas:{}, contas:[], fornecedores:[],
+  despesas:[], receitas:[], contratos:[],
+  safraAtual:null, fazendaFiltro:'', currentTab:'dashboard'
+};
+let LF = { tipo:'todos', categoria:'todas', fazenda:'', conta:'', dataIni:'', dataFim:'' };
 
 const fmtBRL = v => (Number(v)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const fmtDate = d => d ? new Date(d+'T00:00:00').toLocaleDateString('pt-BR') : '—';
+const esc = s => (s??'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 // ================= AUTH =================
 async function checkSession(){
@@ -340,54 +423,104 @@ async function showApp(){
   goTab('dashboard');
 }
 
-// ================= LOAD =================
+// ================= PERSISTÊNCIA DE CONTEXTO (safra global) =================
+function persistSafra(){
+  if (D.safraAtual) localStorage.setItem('faz_safraAtual', D.safraAtual);
+  else localStorage.removeItem('faz_safraAtual');
+}
+function persistFazendaFiltro(){
+  if (D.fazendaFiltro) localStorage.setItem('faz_fazendaFiltro', D.fazendaFiltro);
+  else localStorage.removeItem('faz_fazendaFiltro');
+}
+
+// ================= LOAD BASE =================
 async function loadBase(){
-  const [fz, sf, ct] = await Promise.all([
+  const [fz, sf, ct, fr, sfz] = await Promise.all([
     sb.from('faz_fazendas').select('*').order('nome'),
     sb.from('faz_safras').select('*').order('created_at',{ascending:false}),
-    sb.from('faz_contas').select('*').order('nome')
+    sb.from('faz_contas').select('*').order('nome'),
+    sb.from('faz_fornecedores').select('*').order('nome'),
+    sb.from('faz_safra_fazendas').select('*')
   ]);
   D.fazendas = fz.data || [];
   D.safras = sf.data || [];
   D.contas = ct.data || [];
-  fillFazendaSelect();
+  D.fornecedores = fr.data || [];
+  D.safraFazendas = {};
+  (sfz.data || []).forEach(r=>{
+    if (!D.safraFazendas[r.safra_id]) D.safraFazendas[r.safra_id] = [];
+    D.safraFazendas[r.safra_id].push(r.fazenda_id);
+  });
+
+  const savedSafra = localStorage.getItem('faz_safraAtual');
+  if (savedSafra && D.safras.find(s=>s.id===savedSafra)) D.safraAtual = savedSafra;
+  else if (!D.safraAtual || !D.safras.find(s=>s.id===D.safraAtual)) D.safraAtual = D.safras[0]?.id || null;
+
+  const savedFaz = localStorage.getItem('faz_fazendaFiltro');
+  const fazendasDaSafraSalva = D.safraFazendas[D.safraAtual] || [];
+  D.fazendaFiltro = (savedFaz && fazendasDaSafraSalva.includes(savedFaz)) ? savedFaz : '';
+
   fillSafraSelect();
-  await onSafraChange();
+  fillFazendaFiltroSelect();
+  await reloadSafraScopedData();
 }
-function fillFazendaSelect(){
-  const sel = document.getElementById('selFazenda');
-  sel.innerHTML = '<option value="">Todas as fazendas</option>' +
-    D.fazendas.map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join('');
-  if (D.fazendaAtual) sel.value = D.fazendaAtual;
-}
+
 function fillSafraSelect(){
   const sel = document.getElementById('selSafra');
-  let list = D.safras;
-  if (D.fazendaAtual) list = list.filter(s=>s.fazenda_id===D.fazendaAtual);
-  sel.innerHTML = list.length ? list.map(s=>`<option value="${s.id}">${esc(s.nome)} ${s.status==='encerrada'?'(encerrada)':''}</option>`).join('')
-                              : '<option value="">Nenhuma safra — crie uma</option>';
-  if (!D.safraAtual || !list.find(s=>s.id===D.safraAtual)) D.safraAtual = list[0]?.id || null;
+  sel.innerHTML = D.safras.length
+    ? D.safras.map(s=>`<option value="${s.id}">${esc(s.nome)}${s.status==='encerrada'?' (encerrada)':''}</option>`).join('')
+    : '<option value="">Nenhuma safra cadastrada</option>';
   sel.value = D.safraAtual || '';
+  updateSafraTag();
+}
+function updateSafraTag(){
   const s = D.safras.find(x=>x.id===D.safraAtual);
   document.getElementById('safraStatusTag').innerHTML = s ? `<span class="safraTag">🌱 ${esc(s.nome)}</span>` : '';
 }
-function onFazendaChange(){
-  D.fazendaAtual = document.getElementById('selFazenda').value || null;
-  D.safraAtual = null;
-  fillSafraSelect();
-  onSafraChange();
+function getFazendasDaSafra(safraId){
+  const ids = D.safraFazendas[safraId] || [];
+  return D.fazendas.filter(f=>ids.includes(f.id));
+}
+function fillFazendaFiltroSelect(){
+  const sel = document.getElementById('selFazendaFiltro');
+  const list = getFazendasDaSafra(D.safraAtual);
+  sel.innerHTML = '<option value="">Todas as fazendas da safra</option>' +
+    list.map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join('');
+  sel.value = D.fazendaFiltro || '';
 }
 async function onSafraChange(){
   D.safraAtual = document.getElementById('selSafra').value || null;
-  const s = D.safras.find(x=>x.id===D.safraAtual);
-  document.getElementById('safraStatusTag').innerHTML = s ? `<span class="safraTag">🌱 ${esc(s.nome)}</span>` : '';
+  persistSafra();
+  D.fazendaFiltro = '';
+  persistFazendaFiltro();
+  fillFazendaFiltroSelect();
+  updateSafraTag();
+  await reloadSafraScopedData();
+}
+function onFazendaFiltroChange(){
+  D.fazendaFiltro = document.getElementById('selFazendaFiltro').value || '';
+  persistFazendaFiltro();
+  renderCurrentTab();
+}
+function filterByFazendaGlobal(list){
+  return D.fazendaFiltro ? list.filter(x=>x.fazenda_id===D.fazendaFiltro) : list;
+}
+function needSafra(){
+  if (!D.safraAtual){ alert('Selecione ou crie uma safra primeiro.'); return true; }
+  return false;
+}
+
+// ================= DADOS ESCOPADOS PELA SAFRA =================
+async function reloadSafraScopedData(){
   if (D.safraAtual){
     const [ds, rc, ct] = await Promise.all([
-      sb.from('faz_despesas').select('*').eq('safra_id', D.safraAtual).order('data_vencimento'),
+      sb.from('faz_despesas').select('*').eq('safra_id', D.safraAtual).order('data',{ascending:false}),
       sb.from('faz_receitas').select('*').eq('safra_id', D.safraAtual).order('data',{ascending:false}),
       sb.from('faz_contratos').select('*').eq('safra_id', D.safraAtual).order('created_at',{ascending:false})
     ]);
-    D.despesas = ds.data || []; D.receitas = rc.data || []; D.contratos = ct.data || [];
+    D.despesas = ds.data || [];
+    D.receitas = rc.data || [];
+    D.contratos = ct.data || [];
   } else {
     D.despesas = []; D.receitas = []; D.contratos = [];
   }
@@ -405,30 +538,29 @@ function goTab(tab){
 function renderCurrentTab(){
   if (D.currentTab==='dashboard') renderDashboard();
   if (D.currentTab==='fazendas') renderFazendas();
-  if (D.currentTab==='despesas') renderDespesas();
-  if (D.currentTab==='receitas') renderReceitas();
+  if (D.currentTab==='lancamentos') renderLancamentos();
   if (D.currentTab==='contratos') renderContratos();
   if (D.currentTab==='contas') renderContas();
 }
-function esc(s){ return (s??'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
 function openModal(id){ document.getElementById(id).classList.add('show'); }
-function needSafra(){
-  if (!D.safraAtual){ alert('Selecione ou crie uma safra primeiro.'); return true; }
-  return false;
+function noSafraMsg(){
+  return `<div class="card"><div class="empty"><b>Nenhuma safra selecionada</b>Crie uma fazenda e uma safra para começar a lançar informações.</div></div>`;
 }
 
 // ================= DASHBOARD =================
 function renderDashboard(){
   const el = document.getElementById('tab-dashboard');
-  const totalDespesasPago = D.despesas.filter(d=>d.status==='pago').reduce((a,b)=>a+Number(b.valor_total||0),0);
-  const totalDespesasPend = D.despesas.filter(d=>d.status==='pendente').reduce((a,b)=>a+Number(b.valor_total||0),0);
-  const totalReceitas = D.receitas.reduce((a,b)=>a+Number(b.valor_total||0),0);
+  const despesasF = filterByFazendaGlobal(D.despesas);
+  const receitasF = filterByFazendaGlobal(D.receitas);
+  const totalDespesasPago = despesasF.filter(d=>d.status==='pago').reduce((a,b)=>a+Number(b.valor_total||0),0);
+  const totalDespesasPend = despesasF.filter(d=>d.status==='pendente').reduce((a,b)=>a+Number(b.valor_total||0),0);
+  const totalReceitas = receitasF.reduce((a,b)=>a+Number(b.valor_total||0),0);
   const totalContratos = D.contratos.reduce((a,b)=>a+Number(b.valor_total||0),0);
   const saldo = totalReceitas - totalDespesasPago;
   el.innerHTML = `
     <div class="pageTitle">Dashboard</div>
-    <div class="pageDesc">${D.safraAtual ? 'Resumo da safra selecionada' : 'Selecione uma safra para ver os números'}</div>
+    <div class="pageDesc">${D.safraAtual ? 'Resumo da safra selecionada' + (D.fazendaFiltro ? ' · filtrado por fazenda' : '') : 'Selecione uma safra para ver os números'}</div>
     <div class="kpis">
       <div class="kpi"><div class="lbl">Receitas</div><div class="val">${fmtBRL(totalReceitas)}</div></div>
       <div class="kpi"><div class="lbl">Despesas pagas</div><div class="val">${fmtBRL(totalDespesasPago)}</div></div>
@@ -438,14 +570,14 @@ function renderDashboard(){
     </div>
     <div class="card">
       <div class="cardHead"><h3>Próximos vencimentos</h3></div>
-      ${renderVencimentosList()}
+      ${renderVencimentosList(despesasF)}
     </div>`;
 }
-function renderVencimentosList(){
-  const pend = D.despesas.filter(d=>d.status==='pendente').sort((a,b)=>(a.data_vencimento||'').localeCompare(b.data_vencimento||'')).slice(0,6);
+function renderVencimentosList(list){
+  const pend = list.filter(d=>d.status==='pendente').sort((a,b)=>(a.data_vencimento||'').localeCompare(b.data_vencimento||'')).slice(0,6);
   if (!pend.length) return `<div class="empty">Nenhuma despesa em aberto nesta safra.</div>`;
-  return `<table><thead><tr><th>Fornecedor</th><th>Categoria</th><th>Vencimento</th><th>Valor</th></tr></thead><tbody>
-    ${pend.map(d=>`<tr><td>${esc(d.fornecedor||'—')}</td><td>${esc(d.categoria||'—')}</td><td>${fmtDate(d.data_vencimento)}</td><td>${fmtBRL(d.valor_total)}</td></tr>`).join('')}
+  return `<table><thead><tr><th>Descrição</th><th>Categoria</th><th>Vencimento</th><th>Valor</th></tr></thead><tbody>
+    ${pend.map(d=>`<tr><td>${esc(d.descricao||d.fornecedor||'—')}</td><td>${esc(d.subcategoria||d.categoria||'—')}</td><td>${fmtDate(d.data_vencimento)}</td><td>${fmtBRL(d.valor_total)}</td></tr>`).join('')}
   </tbody></table>`;
 }
 
@@ -497,127 +629,274 @@ async function saveFazenda(){
   goTab('fazendas');
 }
 async function deleteFazenda(id){
-  if (!confirm('Excluir esta fazenda? Todas as safras vinculadas também serão excluídas.')) return;
+  if (!confirm('Excluir esta fazenda? Os vínculos com safras e lançamentos serão desfeitos, mas os lançamentos não serão apagados.')) return;
   await sb.from('faz_fazendas').delete().eq('id', id);
   await loadBase();
   goTab('fazendas');
 }
 
-// ================= SAFRA =================
+// ================= SAFRA (multi-fazenda) =================
 function openSafraModal(){
-  const sel = document.getElementById('sfFazenda');
-  sel.innerHTML = D.fazendas.map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join('');
-  if (D.fazendaAtual) sel.value = D.fazendaAtual;
+  if (!D.fazendas.length){ alert('Cadastre uma fazenda antes de criar uma safra.'); return; }
   document.getElementById('sfNome').value = '';
   document.getElementById('sfStatus').value = 'ativa';
-  if (!D.fazendas.length){ alert('Cadastre uma fazenda antes de criar uma safra.'); return; }
+  document.getElementById('sfFazendasList').innerHTML = D.fazendas.map(f=>`
+    <label><input type="checkbox" class="sfFazChk" value="${f.id}"> ${esc(f.nome)}</label>`).join('');
   openModal('ovSafra');
 }
 async function saveSafra(){
-  const payload = {
-    fazenda_id: document.getElementById('sfFazenda').value,
-    nome: document.getElementById('sfNome').value.trim(),
-    status: document.getElementById('sfStatus').value
-  };
-  if (!payload.nome){ alert('Informe o nome da safra.'); return; }
-  const { data } = await sb.from('faz_safras').insert(payload).select();
+  const nome = document.getElementById('sfNome').value.trim();
+  const status = document.getElementById('sfStatus').value;
+  const checked = Array.from(document.querySelectorAll('.sfFazChk:checked')).map(c=>c.value);
+  if (!nome){ alert('Informe o nome da safra.'); return; }
+  if (!checked.length){ alert('Selecione ao menos uma fazenda para vincular à safra.'); return; }
+  const { data, error } = await sb.from('faz_safras').insert({ nome, status, fazenda_id: checked[0] }).select();
+  if (error){ alert('Erro ao salvar a safra: '+error.message); return; }
+  const safraId = data[0].id;
+  const rows = checked.map(fid=>({ safra_id: safraId, fazenda_id: fid }));
+  await sb.from('faz_safra_fazendas').insert(rows);
   closeModal('ovSafra');
-  D.fazendaAtual = payload.fazenda_id;
+  D.safraAtual = safraId;
+  persistSafra();
   await loadBase();
-  if (data && data[0]) { D.safraAtual = data[0].id; fillSafraSelect(); onSafraChange(); }
 }
 
-// ================= DESPESAS =================
-function renderDespesas(){
-  const el = document.getElementById('tab-despesas');
+// ================= LANÇAMENTOS (Receitas + Despesas) =================
+function renderLancamentos(){
+  const el = document.getElementById('tab-lancamentos');
   if (!D.safraAtual){ el.innerHTML = noSafraMsg(); return; }
+  const combined = buildCombinedLancamentos();
+  const filtered = applyLancFilters(combined);
+  const totalReceitas = filtered.filter(x=>x.tipo==='receita').reduce((a,b)=>a+Number(b.valor_total||0),0);
+  const totalDespesas = filtered.filter(x=>x.tipo==='despesa').reduce((a,b)=>a+Number(b.valor_total||0),0);
+  const saldo = totalReceitas - totalDespesas;
+  const fazendasDaSafra = getFazendasDaSafra(D.safraAtual);
+
   el.innerHTML = `
-    <div class="pageTitle">Despesas</div>
-    <div class="pageDesc">Lançamentos da safra selecionada</div>
+    <div class="pageTitle">Lançamentos</div>
+    <div class="pageDesc">Receitas e despesas da safra selecionada</div>
+    <div class="kpis">
+      <div class="kpi"><div class="lbl">Receitas (filtro)</div><div class="val">${fmtBRL(totalReceitas)}</div></div>
+      <div class="kpi"><div class="lbl">Despesas (filtro)</div><div class="val orange">${fmtBRL(totalDespesas)}</div></div>
+      <div class="kpi"><div class="lbl">Saldo</div><div class="val ${saldo<0?'red':''}">${fmtBRL(saldo)}</div></div>
+    </div>
     <div class="card">
-      <div class="cardHead"><h3>Notas lançadas</h3><button class="btn small" onclick="openDespesaModal()">+ Lançar despesa</button></div>
-      ${D.despesas.length ? `<table><thead><tr><th>Nota</th><th>Fornecedor</th><th>Categoria</th><th>Tipo</th><th>Vencimento</th><th>Valor</th><th>Status</th><th></th></tr></thead><tbody>
-        ${D.despesas.map(d=>`<tr>
-          <td>${esc(d.numero_nota||'—')}</td>
-          <td>${esc(d.fornecedor||'—')}</td>
-          <td>${esc(d.categoria||'—')}</td>
-          <td><span class="badge ${d.tipo}">${d.tipo==='fixa'?'Fixa':'Variável'}</span></td>
-          <td>${fmtDate(d.data_vencimento)}</td>
-          <td>${fmtBRL(d.valor_total)}</td>
-          <td><span class="badge ${d.status}">${d.status==='pago'?'Pago':'Pendente'}</span></td>
-          <td>
-            ${d.status==='pendente' ? `<button class="iconBtn" onclick="openBaixaModal('${d.id}')">Dar baixa</button>` : ''}
-            <button class="iconBtn" onclick="openDespesaModal('${d.id}')">Editar</button>
-            <button class="iconBtn" onclick="deleteDespesa('${d.id}')">Excluir</button>
-          </td>
-        </tr>`).join('')}</tbody></table>`
-        : `<div class="empty"><b>Nenhuma despesa lançada</b>Lance a primeira nota desta safra.</div>`}
+      <div class="cardHead">
+        <h3>Filtros</h3>
+        <div style="display:flex; gap:8px;">
+          <button class="btn small" onclick="openReceitaModal()">+ Receita</button>
+          <button class="btn small secondary" style="width:auto" onclick="openDespesaModal()">+ Despesa</button>
+        </div>
+      </div>
+      <div class="filterBar">
+        <div class="grp"><label>Tipo</label><select id="lfTipo" onchange="onLancFilterChange()">
+          <option value="todos">Todos</option><option value="receita">Receita</option><option value="despesa">Despesa</option>
+        </select></div>
+        <div class="grp"><label>Categoria</label><select id="lfCategoria" onchange="onLancFilterChange()">
+          <option value="todas">Todas</option>
+          <option value="Receita">Receita</option><option value="Despesa">Despesa</option>
+          <option value="Investimento">Investimento</option><option value="Financiamento">Financiamento</option>
+        </select></div>
+        <div class="grp"><label>Fazenda</label><select id="lfFazenda" onchange="onLancFilterChange()">
+          <option value="">Todas</option>
+          ${fazendasDaSafra.map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join('')}
+        </select></div>
+        <div class="grp"><label>Conta</label><select id="lfConta" onchange="onLancFilterChange()">
+          <option value="">Todas</option>
+          ${D.contas.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('')}
+        </select></div>
+        <div class="grp"><label>De</label><input type="date" id="lfDataIni" onchange="onLancFilterChange()"></div>
+        <div class="grp"><label>Até</label><input type="date" id="lfDataFim" onchange="onLancFilterChange()"></div>
+        <button class="iconBtn" onclick="clearLancFilters()">Limpar filtros</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="cardHead"><h3>Lançamentos (${filtered.length})</h3></div>
+      ${filtered.length ? `<table><thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Fazenda</th><th>Conta</th><th>Valor</th><th>Status</th><th></th></tr></thead><tbody>
+        ${filtered.map(x=>renderLancRow(x)).join('')}
+      </tbody></table>` : `<div class="empty"><b>Nenhum lançamento encontrado</b>Ajuste os filtros ou cadastre um novo lançamento.</div>`}
     </div>`;
+  setLancFilterValues();
 }
-function addProdutoRow(nome='', valor=''){
-  prodRowCount++;
-  const id = 'pr'+prodRowCount;
-  const wrap = document.createElement('div');
-  wrap.className = 'prodRow'; wrap.id = id;
-  wrap.innerHTML = `<input placeholder="Produto" value="${esc(nome)}" oninput="recalcDespesaTotal()">
-    <input placeholder="Valor" type="number" step="0.01" value="${valor}" style="max-width:120px" oninput="recalcDespesaTotal()">
-    <button class="rm" onclick="document.getElementById('${id}').remove(); recalcDespesaTotal();">✕</button>`;
-  document.getElementById('dsProdutos').appendChild(wrap);
+function buildCombinedLancamentos(){
+  const rec = D.receitas.map(r=>({
+    id:r.id, tipo:'receita', data:r.data, categoria_grupo:r.categoria_grupo||'Receita', subcategoria:r.subcategoria||'',
+    descricao:r.produto, fazenda_id:r.fazenda_id, conta_id:r.conta_id, valor_total:r.valor_total, status:null
+  }));
+  const des = D.despesas.map(d=>({
+    id:d.id, tipo:'despesa', data:d.data||d.data_vencimento, categoria_grupo:d.categoria_grupo||'Despesa', subcategoria:d.subcategoria||'',
+    descricao:d.descricao||d.fornecedor||'', fazenda_id:d.fazenda_id, conta_id:d.conta_pagamento_id, valor_total:d.valor_total, status:d.status
+  }));
+  return [...rec, ...des].sort((a,b)=>(b.data||'').localeCompare(a.data||''));
 }
-function recalcDespesaTotal(){
-  let total = 0;
-  document.querySelectorAll('#dsProdutos .prodRow').forEach(r=>{
-    total += Number(r.children[1].value)||0;
+function applyLancFilters(list){
+  return list.filter(x=>{
+    if (LF.tipo!=='todos' && x.tipo!==LF.tipo) return false;
+    if (LF.categoria!=='todas' && x.categoria_grupo!==LF.categoria) return false;
+    if (LF.fazenda && x.fazenda_id!==LF.fazenda) return false;
+    if (LF.conta && x.conta_id!==LF.conta) return false;
+    if (LF.dataIni && (x.data||'') < LF.dataIni) return false;
+    if (LF.dataFim && (x.data||'') > LF.dataFim) return false;
+    return true;
   });
-  document.getElementById('dsTotalDisplay').textContent = fmtBRL(total);
-  return total;
+}
+function renderLancRow(x){
+  const fazNome = D.fazendas.find(f=>f.id===x.fazenda_id)?.nome || '—';
+  const contaNomeX = D.contas.find(c=>c.id===x.conta_id)?.nome || '—';
+  const tipoBadge = x.tipo==='receita' ? '<span class="badge entregue">Receita</span>' : '<span class="badge pendente">Despesa</span>';
+  let statusCell = '—';
+  let actions = '';
+  if (x.tipo==='despesa'){
+    statusCell = `<span class="badge ${x.status}">${x.status==='pago'?'Pago':'Pendente'}</span>`;
+    actions = (x.status==='pendente' ? `<button class="iconBtn" onclick="openBaixaModal('${x.id}')">Dar baixa</button>` : '') +
+      `<button class="iconBtn" onclick="openDespesaModal('${x.id}')">Editar</button><button class="iconBtn" onclick="deleteDespesa('${x.id}')">Excluir</button>`;
+  } else {
+    actions = `<button class="iconBtn" onclick="openReceitaModal('${x.id}')">Editar</button><button class="iconBtn" onclick="deleteReceita('${x.id}')">Excluir</button>`;
+  }
+  return `<tr>
+    <td>${fmtDate(x.data)}</td>
+    <td>${tipoBadge}</td>
+    <td>${esc(x.categoria_grupo)}${x.subcategoria?' · '+esc(x.subcategoria):''}</td>
+    <td>${esc(x.descricao||'—')}</td>
+    <td>${esc(fazNome)}</td>
+    <td>${esc(contaNomeX)}</td>
+    <td>${fmtBRL(x.valor_total)}</td>
+    <td>${statusCell}</td>
+    <td>${actions}</td>
+  </tr>`;
+}
+function onLancFilterChange(){
+  LF.tipo = document.getElementById('lfTipo').value;
+  LF.categoria = document.getElementById('lfCategoria').value;
+  LF.fazenda = document.getElementById('lfFazenda').value;
+  LF.conta = document.getElementById('lfConta').value;
+  LF.dataIni = document.getElementById('lfDataIni').value;
+  LF.dataFim = document.getElementById('lfDataFim').value;
+  renderLancamentos();
+}
+function clearLancFilters(){
+  LF = { tipo:'todos', categoria:'todas', fazenda:'', conta:'', dataIni:'', dataFim:'' };
+  renderLancamentos();
+}
+function setLancFilterValues(){
+  document.getElementById('lfTipo').value = LF.tipo;
+  document.getElementById('lfCategoria').value = LF.categoria;
+  document.getElementById('lfFazenda').value = LF.fazenda;
+  document.getElementById('lfConta').value = LF.conta;
+  document.getElementById('lfDataIni').value = LF.dataIni;
+  document.getElementById('lfDataFim').value = LF.dataFim;
+}
+
+// ---------- fazenda / conta selects auxiliares ----------
+function fillFazendaSelectSafra(elId, selected){
+  const list = getFazendasDaSafra(D.safraAtual);
+  const sel = document.getElementById(elId);
+  sel.innerHTML = list.length ? list.map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join('') : '<option value="">Nenhuma fazenda vinculada à safra</option>';
+  if (selected) sel.value = selected;
+}
+function fillContaSelectInto(elId, selected){
+  const sel = document.getElementById(elId);
+  sel.innerHTML = D.contas.length ? D.contas.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('') : '<option value="">Cadastre uma conta</option>';
+  if (selected) sel.value = selected;
+}
+
+// ================= DESPESA =================
+function onDsCategoriaChange(){
+  const grupo = document.getElementById('dsCategoriaGrupo').value;
+  const subSel = document.getElementById('dsSubcategoria');
+  subSel.innerHTML = (DESPESA_SUB[grupo]||[]).map(s=>`<option value="${s}">${s}</option>`).join('');
+  document.getElementById('dsTipoWrap').style.display = grupo==='Despesa' ? 'block' : 'none';
+}
+function calcDespesaTotal(){
+  const q = Number(document.getElementById('dsQtd').value)||0;
+  const v = Number(document.getElementById('dsValorUn').value)||0;
+  const t = q*v;
+  document.getElementById('dsTotalDisplay').textContent = fmtBRL(t);
+  return t;
+}
+function fillFornecedorSelect(selected){
+  const sel = document.getElementById('dsFornecedor');
+  sel.innerHTML = '<option value="">Nenhum</option>' + D.fornecedores.map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join('');
+  sel.value = selected || '';
+}
+function openFornecedorQuick(){
+  document.getElementById('fnNome').value = '';
+  document.getElementById('fnDocumento').value = '';
+  openModal('ovFornecedorQuick');
+}
+async function saveFornecedorQuick(){
+  const nome = document.getElementById('fnNome').value.trim();
+  const documento = document.getElementById('fnDocumento').value.trim();
+  if (!nome){ alert('Informe o nome do fornecedor.'); return; }
+  const { data, error } = await sb.from('faz_fornecedores').insert({ nome, documento }).select();
+  if (error){ alert('Erro ao cadastrar fornecedor: '+error.message); return; }
+  const { data: list } = await sb.from('faz_fornecedores').select('*').order('nome');
+  D.fornecedores = list || [];
+  closeModal('ovFornecedorQuick');
+  fillFornecedorSelect(data[0].id);
 }
 function openDespesaModal(id){
   if (!id && needSafra()) return;
   document.getElementById('dsId').value = id||'';
   document.getElementById('dsModalTitle').textContent = id ? 'Editar Despesa' : 'Nova Despesa';
-  document.getElementById('dsProdutos').innerHTML = ''; prodRowCount = 0;
   const d = D.despesas.find(x=>x.id===id) || {};
-  document.getElementById('dsNota').value = d.numero_nota||'';
-  document.getElementById('dsFornecedor').value = d.fornecedor||'';
-  document.getElementById('dsTipo').value = d.tipo||'variavel';
-  document.getElementById('dsCategoria').value = d.categoria||'';
-  document.getElementById('dsVencimento').value = d.data_vencimento||'';
-  const produtos = d.produtos || [];
-  if (produtos.length) produtos.forEach(p=>addProdutoRow(p.nome, p.valor));
-  else addProdutoRow();
-  recalcDespesaTotal();
+  document.getElementById('dsData').value = d.data || d.data_vencimento || new Date().toISOString().slice(0,10);
+  document.getElementById('dsCategoriaGrupo').value = d.categoria_grupo || 'Despesa';
+  onDsCategoriaChange();
+  if (d.subcategoria) document.getElementById('dsSubcategoria').value = d.subcategoria;
+  document.getElementById('dsTipo').value = d.tipo || 'variavel';
+  fillFazendaSelectSafra('dsFazenda', d.fazenda_id);
+  document.getElementById('dsDescricao').value = d.descricao || '';
+  document.getElementById('dsQtd').value = d.quantidade || '';
+  document.getElementById('dsValorUn').value = d.valor_unitario || '';
+  fillFornecedorSelect(d.fornecedor_id);
+  fillContaSelectInto('dsConta', d.conta_pagamento_id);
+  document.getElementById('dsNota').value = d.numero_nota || '';
+  document.getElementById('dsVencimento').value = d.data_vencimento || '';
+  calcDespesaTotal();
   openModal('ovDespesa');
 }
 async function saveDespesa(){
   const id = document.getElementById('dsId').value;
-  const produtos = [];
-  document.querySelectorAll('#dsProdutos .prodRow').forEach(r=>{
-    const nome = r.children[0].value.trim();
-    const valor = Number(r.children[1].value)||0;
-    if (nome) produtos.push({nome, valor});
-  });
+  const categoria_grupo = document.getElementById('dsCategoriaGrupo').value;
+  const subcategoria = document.getElementById('dsSubcategoria').value;
+  const tipo = categoria_grupo==='Despesa' ? document.getElementById('dsTipo').value : null;
+  const fazenda_id = document.getElementById('dsFazenda').value;
+  const descricao = document.getElementById('dsDescricao').value.trim();
+  const qtd = Number(document.getElementById('dsQtd').value)||0;
+  const valorUn = Number(document.getElementById('dsValorUn').value)||0;
+  const valor_total = qtd*valorUn;
+  const fornecedor_id = document.getElementById('dsFornecedor').value || null;
+  const fornecedorNome = fornecedor_id ? (D.fornecedores.find(f=>f.id===fornecedor_id)?.nome || null) : null;
+  const conta_pagamento_id = document.getElementById('dsConta').value;
+  const numero_nota = document.getElementById('dsNota').value.trim();
+  const data_vencimento = document.getElementById('dsVencimento').value || null;
+  const data = document.getElementById('dsData').value;
+
+  if (!data){ alert('Informe a data.'); return; }
+  if (!fazenda_id){ alert('Selecione a fazenda.'); return; }
+  if (!descricao){ alert('Informe a descrição/produto.'); return; }
+  if (!qtd || !valorUn){ alert('Informe quantidade e valor unitário.'); return; }
+  if (!conta_pagamento_id){ alert('Selecione a conta de pagamento.'); return; }
+
   const payload = {
-    safra_id: D.safraAtual,
-    numero_nota: document.getElementById('dsNota').value.trim(),
-    fornecedor: document.getElementById('dsFornecedor').value.trim(),
-    produtos,
-    tipo: document.getElementById('dsTipo').value,
-    categoria: document.getElementById('dsCategoria').value.trim(),
-    valor_total: recalcDespesaTotal(),
-    data_vencimento: document.getElementById('dsVencimento').value || null
+    data, categoria_grupo, subcategoria, tipo,
+    fazenda_id, descricao, quantidade: qtd, valor_unitario: valorUn, valor_total,
+    fornecedor_id, fornecedor: fornecedorNome,
+    conta_pagamento_id, numero_nota, data_vencimento,
+    safra_id: D.safraAtual
   };
-  if (!payload.fornecedor){ alert('Informe o fornecedor.'); return; }
   if (id) await sb.from('faz_despesas').update(payload).eq('id', id);
-  else await sb.from('faz_despesas').insert(payload);
+  else await sb.from('faz_despesas').insert({ ...payload, status:'pendente' });
   closeModal('ovDespesa');
-  await onSafraChange();
-  goTab('despesas');
+  await reloadSafraScopedData();
+  goTab('lancamentos');
 }
 async function deleteDespesa(id){
   if (!confirm('Excluir esta despesa?')) return;
   await sb.from('faz_despesas').delete().eq('id', id);
-  await onSafraChange(); goTab('despesas');
+  await reloadSafraScopedData();
+  goTab('lancamentos');
 }
 function openBaixaModal(id){
   document.getElementById('bxId').value = id;
@@ -633,55 +912,60 @@ async function confirmBaixa(){
   if (!conta){ alert('Cadastre e selecione uma conta de pagamento.'); return; }
   await sb.from('faz_despesas').update({ status:'pago', conta_pagamento_id: conta, data_pagamento: data }).eq('id', id);
   closeModal('ovBaixa');
-  await onSafraChange(); goTab('despesas');
+  await reloadSafraScopedData();
+  goTab('lancamentos');
 }
 
-// ================= RECEITAS =================
-function renderReceitas(){
-  const el = document.getElementById('tab-receitas');
-  if (!D.safraAtual){ el.innerHTML = noSafraMsg(); return; }
-  el.innerHTML = `
-    <div class="pageTitle">Receitas</div>
-    <div class="pageDesc">Vendas registradas na safra selecionada</div>
-    <div class="card">
-      <div class="cardHead"><h3>Vendas lançadas</h3><button class="btn small" onclick="openReceitaModal()">+ Lançar receita</button></div>
-      ${D.receitas.length ? `<table><thead><tr><th>Produto</th><th>Sacas</th><th>Valor un.</th><th>Total</th><th>Conta</th><th>Data</th><th></th></tr></thead><tbody>
-        ${D.receitas.map(r=>`<tr>
-          <td><b>${esc(r.produto)}</b></td>
-          <td>${r.quantidade_sacas}</td>
-          <td>${fmtBRL(r.valor_unitario)}</td>
-          <td>${fmtBRL(r.valor_total)}</td>
-          <td>${esc(contaNome(r.conta_id))}</td>
-          <td>${fmtDate(r.data)}</td>
-          <td><button class="iconBtn" onclick="openReceitaModal('${r.id}')">Editar</button><button class="iconBtn" onclick="deleteReceita('${r.id}')">Excluir</button></td>
-        </tr>`).join('')}</tbody></table>`
-        : `<div class="empty"><b>Nenhuma receita lançada</b>Registre a primeira venda desta safra.</div>`}
-    </div>`;
+// ================= RECEITA =================
+function onRcCategoriaChange(){
+  const grupo = document.getElementById('rcCategoriaGrupo').value;
+  const subSel = document.getElementById('rcSubcategoria');
+  subSel.innerHTML = (RECEITA_SUB[grupo]||[]).map(s=>`<option value="${s}">${s}</option>`).join('');
+  document.getElementById('rcOperacionalWrap').style.display = grupo==='Receita' ? 'block' : 'none';
+  onRcSubcategoriaChange();
 }
-function contaNome(id){ return D.contas.find(c=>c.id===id)?.nome || '—'; }
-function fillSafraSelectInto(elId, selected){
-  const sel = document.getElementById(elId);
-  sel.innerHTML = D.safras.map(s=>`<option value="${s.id}">${esc(s.nome)}</option>`).join('');
-  sel.value = selected || D.safraAtual || '';
+function onRcSubcategoriaChange(){
+  const grupo = document.getElementById('rcCategoriaGrupo').value;
+  const sub = document.getElementById('rcSubcategoria').value;
+  const showOrigem = grupo==='Receita' && (sub==='Milho' || sub==='Soja');
+  document.getElementById('rcOrigemProdutoWrap').style.display = showOrigem ? 'block' : 'none';
+  if (!showOrigem){
+    document.getElementById('rcContratoWrap').style.display = 'none';
+    document.getElementById('rcSaldoBox').innerHTML = '';
+  } else {
+    onRcOrigemProdutoChange();
+  }
 }
-function fillContaSelectInto(elId, selected){
-  const sel = document.getElementById(elId);
-  sel.innerHTML = D.contas.length ? D.contas.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('') : '<option value="">Cadastre uma conta</option>';
-  if (selected) sel.value = selected;
+function onRcOrigemProdutoChange(){
+  const val = document.getElementById('rcOrigemProduto').value;
+  if (val==='contrato'){
+    const sub = document.getElementById('rcSubcategoria').value;
+    const options = D.contratos.filter(c=>(c.produto||'').trim().toLowerCase() === sub.trim().toLowerCase());
+    const sel = document.getElementById('rcContrato');
+    sel.innerHTML = options.length
+      ? options.map(c=>`<option value="${c.id}">${esc(c.numero_contrato||'Contrato')} — ${esc(c.produto)} (${c.quantidade} sc)</option>`).join('')
+      : '<option value="">Nenhum contrato compatível nesta safra</option>';
+    document.getElementById('rcContratoWrap').style.display = 'block';
+    onRcContratoChange();
+  } else {
+    document.getElementById('rcContratoWrap').style.display = 'none';
+    document.getElementById('rcSaldoBox').innerHTML = '';
+  }
 }
-function openReceitaModal(id){
-  if (!id && needSafra()) return;
-  document.getElementById('rcId').value = id||'';
-  document.getElementById('rcModalTitle').textContent = id ? 'Editar Receita' : 'Nova Receita';
-  const r = D.receitas.find(x=>x.id===id) || {};
-  document.getElementById('rcProduto').value = r.produto||'';
-  fillSafraSelectInto('rcSafra', r.safra_id);
-  document.getElementById('rcQtd').value = r.quantidade_sacas||'';
-  document.getElementById('rcValorUn').value = r.valor_unitario||'';
-  fillContaSelectInto('rcConta', r.conta_id);
-  document.getElementById('rcData').value = r.data || new Date().toISOString().slice(0,10);
-  calcReceitaTotal();
-  openModal('ovReceita');
+function onRcContratoChange(){
+  const contratoId = document.getElementById('rcContrato').value;
+  const editId = document.getElementById('rcId').value || null;
+  if (!contratoId){ document.getElementById('rcSaldoBox').innerHTML=''; return; }
+  const saldo = contratoSaldo(contratoId, editId);
+  document.getElementById('rcSaldoBox').innerHTML = `Saldo disponível no contrato: <b>${saldo.qtd}</b> sacas · <b>${fmtBRL(saldo.valor)}</b>`;
+}
+function contratoSaldo(contratoId, excludeReceitaId){
+  const c = D.contratos.find(x=>x.id===contratoId);
+  if (!c) return { qtd:0, valor:0 };
+  const usados = D.receitas.filter(r=>r.contrato_id===contratoId && r.id!==excludeReceitaId);
+  const qtdUsada = usados.reduce((a,b)=>a+Number(b.quantidade_sacas||0),0);
+  const valorUsado = usados.reduce((a,b)=>a+Number(b.valor_total||0),0);
+  return { qtd: Number(c.quantidade||0)-qtdUsada, valor: Number(c.valor_total||0)-valorUsado };
 }
 function calcReceitaTotal(){
   const q = Number(document.getElementById('rcQtd').value)||0;
@@ -690,27 +974,86 @@ function calcReceitaTotal(){
   document.getElementById('rcTotalDisplay').textContent = fmtBRL(t);
   return t;
 }
+function openReceitaModal(id){
+  if (!id && needSafra()) return;
+  document.getElementById('rcId').value = id||'';
+  document.getElementById('rcModalTitle').textContent = id ? 'Editar Receita' : 'Nova Receita';
+  const r = D.receitas.find(x=>x.id===id) || {};
+  document.getElementById('rcData').value = r.data || new Date().toISOString().slice(0,10);
+  document.getElementById('rcCategoriaGrupo').value = r.categoria_grupo || 'Receita';
+  onRcCategoriaChange();
+  if (r.subcategoria) document.getElementById('rcSubcategoria').value = r.subcategoria;
+  document.getElementById('rcOperacional').value = r.operacional===false ? 'nao' : 'sim';
+  fillFazendaSelectSafra('rcFazenda', r.fazenda_id);
+  document.getElementById('rcProduto').value = r.produto || '';
+  document.getElementById('rcQtd').value = r.quantidade_sacas || '';
+  document.getElementById('rcValorUn').value = r.valor_unitario || '';
+  fillContaSelectInto('rcConta', r.conta_id);
+  document.getElementById('rcOrigemPagador').value = r.origem_pagador || '';
+  onRcSubcategoriaChange();
+  if (r.origem_produto){
+    document.getElementById('rcOrigemProduto').value = r.origem_produto;
+    onRcOrigemProdutoChange();
+  }
+  if (r.contrato_id){
+    document.getElementById('rcContrato').value = r.contrato_id;
+    onRcContratoChange();
+  }
+  calcReceitaTotal();
+  openModal('ovReceita');
+}
 async function saveReceita(){
   const id = document.getElementById('rcId').value;
+  const categoria_grupo = document.getElementById('rcCategoriaGrupo').value;
+  const subcategoria = document.getElementById('rcSubcategoria').value;
+  const fazenda_id = document.getElementById('rcFazenda').value;
+  const conta_id = document.getElementById('rcConta').value;
+  const data = document.getElementById('rcData').value;
+  const produto = document.getElementById('rcProduto').value.trim();
+  const qtd = Number(document.getElementById('rcQtd').value)||0;
+  const valorUn = Number(document.getElementById('rcValorUn').value)||0;
+  const valor_total = qtd*valorUn;
+  const operacional = categoria_grupo==='Receita' ? (document.getElementById('rcOperacional').value==='sim') : null;
+  const origem_pagador = document.getElementById('rcOrigemPagador').value.trim();
+
+  if (!data){ alert('Informe a data.'); return; }
+  if (!fazenda_id){ alert('Selecione a fazenda.'); return; }
+  if (!produto){ alert('Informe a descrição/produto.'); return; }
+  if (!qtd || !valorUn){ alert('Informe quantidade e valor unitário.'); return; }
+  if (!conta_id){ alert('Selecione a conta de recebimento.'); return; }
+
+  let origem_produto = null, contrato_id = null;
+  const showOrigem = categoria_grupo==='Receita' && (subcategoria==='Milho' || subcategoria==='Soja');
+  if (showOrigem){
+    origem_produto = document.getElementById('rcOrigemProduto').value;
+    if (origem_produto==='contrato'){
+      contrato_id = document.getElementById('rcContrato').value || null;
+      if (!contrato_id){ alert('Selecione o contrato.'); return; }
+      const saldo = contratoSaldo(contrato_id, id||null);
+      if (qtd > saldo.qtd + 0.0001){ alert('Quantidade acima do saldo disponível do contrato ('+saldo.qtd+' sacas).'); return; }
+      if (valor_total > saldo.valor + 0.0001){ alert('Valor acima do saldo disponível do contrato ('+fmtBRL(saldo.valor)+').'); return; }
+    } else {
+      contrato_id = null;
+    }
+  }
+
   const payload = {
-    produto: document.getElementById('rcProduto').value.trim(),
-    safra_id: document.getElementById('rcSafra').value,
-    quantidade_sacas: Number(document.getElementById('rcQtd').value)||0,
-    valor_unitario: Number(document.getElementById('rcValorUn').value)||0,
-    valor_total: calcReceitaTotal(),
-    conta_id: document.getElementById('rcConta').value || null,
-    data: document.getElementById('rcData').value || null
+    data, categoria_grupo, subcategoria, operacional,
+    fazenda_id, produto, quantidade_sacas: qtd, valor_unitario: valorUn, valor_total,
+    conta_id, origem_pagador, origem_produto, contrato_id,
+    safra_id: D.safraAtual
   };
-  if (!payload.produto){ alert('Informe o produto.'); return; }
   if (id) await sb.from('faz_receitas').update(payload).eq('id', id);
   else await sb.from('faz_receitas').insert(payload);
   closeModal('ovReceita');
-  await onSafraChange(); goTab('receitas');
+  await reloadSafraScopedData();
+  goTab('lancamentos');
 }
 async function deleteReceita(id){
   if (!confirm('Excluir esta receita?')) return;
   await sb.from('faz_receitas').delete().eq('id', id);
-  await onSafraChange(); goTab('receitas');
+  await reloadSafraScopedData();
+  goTab('lancamentos');
 }
 
 // ================= CONTRATOS =================
@@ -719,7 +1062,7 @@ function renderContratos(){
   if (!D.safraAtual){ el.innerHTML = noSafraMsg(); return; }
   el.innerHTML = `
     <div class="pageTitle">Contratos</div>
-    <div class="pageDesc">Contratos de venda firmados</div>
+    <div class="pageDesc">Contratos de venda firmados nesta safra</div>
     <div class="card">
       <div class="cardHead"><h3>Contratos</h3><button class="btn small" onclick="openContratoModal()">+ Novo contrato</button></div>
       ${D.contratos.length ? `<table><thead><tr><th>Nº</th><th>Produto</th><th>Qtd (sc)</th><th>Valor un.</th><th>Total</th><th>Recebimento</th><th>Entrega</th><th>Status</th><th></th></tr></thead><tbody>
@@ -744,7 +1087,6 @@ function openContratoModal(id){
   const c = D.contratos.find(x=>x.id===id) || {};
   document.getElementById('ctNumero').value = c.numero_contrato||'';
   document.getElementById('ctProduto').value = c.produto||'';
-  fillSafraSelectInto('ctSafra', c.safra_id);
   document.getElementById('ctQtd').value = c.quantidade||'';
   document.getElementById('ctValorUn').value = c.valor_unitario||'';
   document.getElementById('ctDataReceb').value = c.data_recebimento||'';
@@ -765,7 +1107,7 @@ async function saveContrato(){
   const payload = {
     numero_contrato: document.getElementById('ctNumero').value.trim(),
     produto: document.getElementById('ctProduto').value.trim(),
-    safra_id: document.getElementById('ctSafra').value,
+    safra_id: D.safraAtual,
     quantidade: Number(document.getElementById('ctQtd').value)||0,
     valor_unitario: Number(document.getElementById('ctValorUn').value)||0,
     valor_total: calcContratoTotal(),
@@ -777,12 +1119,14 @@ async function saveContrato(){
   if (id) await sb.from('faz_contratos').update(payload).eq('id', id);
   else await sb.from('faz_contratos').insert(payload);
   closeModal('ovContrato');
-  await onSafraChange(); goTab('contratos');
+  await reloadSafraScopedData();
+  goTab('contratos');
 }
 async function deleteContrato(id){
-  if (!confirm('Excluir este contrato?')) return;
+  if (!confirm('Excluir este contrato? Receitas que apontam para ele ficarão sem contrato vinculado.')) return;
   await sb.from('faz_contratos').delete().eq('id', id);
-  await onSafraChange(); goTab('contratos');
+  await reloadSafraScopedData();
+  goTab('contratos');
 }
 
 // ================= CONTAS =================
@@ -814,10 +1158,6 @@ async function deleteConta(id){
   const { data } = await sb.from('faz_contas').select('*').order('nome');
   D.contas = data || [];
   goTab('contas');
-}
-
-function noSafraMsg(){
-  return `<div class="card"><div class="empty"><b>Nenhuma safra selecionada</b>Crie uma fazenda e uma safra para começar a lançar informações.</div></div>`;
 }
 
 // ================= INIT =================
