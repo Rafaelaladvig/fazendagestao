@@ -1053,10 +1053,23 @@ function renderDashboard(){
       </div>
     </div>
 
-    <div class="card">
-      <div class="cardHead"><h3>Próximos vencimentos</h3></div>
-      ${renderVencimentosList(despesasF)}
+    <div class="grid2">
+      <div class="card">
+        <div class="cardHead"><h3>Próximos vencimentos</h3></div>
+        ${renderVencimentosList(despesasF)}
+      </div>
+      <div class="card">
+        <div class="cardHead"><h3>Próximos recebimentos</h3></div>
+        ${renderRecebimentosList(D.contratos)}
+      </div>
     </div>`;
+}
+function renderRecebimentosList(list){
+  const pend = list.filter(c=>c.status!=='liquidado').sort((a,b)=>(a.data_recebimento||'').localeCompare(b.data_recebimento||'')).slice(0,6);
+  if (!pend.length) return `<div class="empty">Nenhum recebimento em aberto nesta safra.</div>`;
+  return `<table><thead><tr><th>Contrato</th><th>Produto</th><th>Recebimento</th><th>Valor</th><th>Status</th></tr></thead><tbody>
+    ${pend.map(c=>`<tr><td>${esc(c.numero_contrato||'—')}</td><td>${esc(c.produto)}</td><td>${fmtDate(c.data_recebimento)}</td><td>${fmtBRL(c.valor_total)}</td><td><span class="badge ${c.status}">${esc(c.status)}</span></td></tr>`).join('')}
+  </tbody></table>`;
 }
 function pontoEqCard(label, sacas, jaVendido){
   if (sacas==null){
