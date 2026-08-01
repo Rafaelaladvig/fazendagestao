@@ -413,11 +413,34 @@ tr:last-child td{border-bottom:none;}
 <div class="overlay" id="ovBaixa"><div class="modal">
   <h3>Dar baixa na despesa</h3>
   <input type="hidden" id="bxId">
+  <div class="totalLine" style="margin-top:0;"><span>Valor original da nota</span><span id="bxValorOriginal">R$ 0,00</span></div>
+  <div class="grid2">
+    <div class="field"><label>Desconto obtido (opcional)</label><input id="bxDesconto" type="number" step="0.01" value="0" oninput="calcBaixaDespesaTotal()"></div>
+    <div class="field"><label>Juros/multa pagos (opcional)</label><input id="bxJurosMulta" type="number" step="0.01" value="0" oninput="calcBaixaDespesaTotal()"></div>
+  </div>
+  <div class="totalLine"><span>Valor efetivamente pago</span><span id="bxValorPago">R$ 0,00</span></div>
   <div class="field"><label>Pagar com qual conta?</label><select id="bxConta"></select></div>
   <div class="field"><label>Data do pagamento</label><input id="bxData" type="date"></div>
   <div class="modalActions">
     <button class="btn secondary" onclick="closeModal('ovBaixa')">Cancelar</button>
     <button class="btn" onclick="confirmBaixa()">Confirmar baixa</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="ovBaixaReceita"><div class="modal">
+  <h3>Confirmar recebimento</h3>
+  <input type="hidden" id="rxId">
+  <div class="totalLine" style="margin-top:0;"><span>Valor original previsto</span><span id="rxValorOriginal">R$ 0,00</span></div>
+  <div class="grid2">
+    <div class="field"><label>Desconto concedido (opcional)</label><input id="rxDesconto" type="number" step="0.01" value="0" oninput="calcBaixaReceitaTotal()"></div>
+    <div class="field"><label>Juros/multa recebidos (opcional)</label><input id="rxJurosMulta" type="number" step="0.01" value="0" oninput="calcBaixaReceitaTotal()"></div>
+  </div>
+  <div class="totalLine"><span>Valor efetivamente recebido</span><span id="rxValorPago">R$ 0,00</span></div>
+  <div class="field"><label>Recebido em qual conta?</label><select id="rxConta"></select></div>
+  <div class="field"><label>Data do recebimento</label><input id="rxData" type="date"></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovBaixaReceita')">Cancelar</button>
+    <button class="btn" onclick="confirmBaixaReceita()">Confirmar recebimento</button>
   </div>
 </div></div>
 
@@ -469,6 +492,7 @@ tr:last-child td{border-bottom:none;}
     <select id="rcContrato" onchange="onRcContratoChange()"></select>
     <div class="saldoBox" id="rcSaldoBox"></div>
   </div>
+  <div class="field"><label>Data prevista de recebimento (opcional)</label><input id="rcVencimento" type="date"></div>
   <div class="modalActions">
     <button class="btn secondary" onclick="closeModal('ovReceita')">Cancelar</button>
     <button class="btn" onclick="saveReceita()">Salvar</button>
@@ -1237,7 +1261,9 @@ function renderLancRow(x){
     actions = (x.status==='pendente' ? `<button class="iconBtn" onclick="openBaixaModal('${x.id}')">Dar baixa</button>` : '') +
       `<button class="iconBtn" onclick="openDespesaModal('${x.id}')">Editar</button><button class="iconBtn" onclick="deleteLancamento('${x.id}')">Excluir</button>`;
   } else {
-    actions = `<button class="iconBtn" onclick="openReceitaModal('${x.id}')">Editar</button><button class="iconBtn" onclick="deleteLancamento('${x.id}')">Excluir</button>`;
+    statusCell = `<span class="badge ${x.status}">${x.status==='pago'?'Recebido':'Pendente'}</span>`;
+    actions = (x.status==='pendente' ? `<button class="iconBtn" onclick="openBaixaReceitaModal('${x.id}')">Confirmar recebimento</button>` : '') +
+      `<button class="iconBtn" onclick="openReceitaModal('${x.id}')">Editar</button><button class="iconBtn" onclick="deleteLancamento('${x.id}')">Excluir</button>`;
   }
   return `<tr>
     <td>${fmtDate(x.data)}</td>
@@ -1286,10 +1312,13 @@ function fillFazendaSelectSafra(elId, selected){
   sel.innerHTML = list.length ? list.map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join('') : '<option value="">Nenhuma fazenda vinculada à safra</option>';
   if (selected) sel.value = selected;
 }
-function fillContaSelectInto(elId, selected){
+function contaLabelComNumero(c){
+  return esc(c.nome) + (c.numero_conta ? ' — Nº '+esc(c.numero_conta) : '');
+}
+function fillContaSelectInto(elId, selected, comNumero){
   const sel = document.getElementById(elId);
   const list = D.contas.filter(c=>c.ativo || c.id===selected);
-  sel.innerHTML = list.length ? list.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('') : '<option value="">Cadastre uma conta</option>';
+  sel.innerHTML = list.length ? list.map(c=>`<option value="${c.id}">${comNumero ? contaLabelComNumero(c) : esc(c.nome)}</option>`).join('') : '<option value="">Cadastre uma conta</option>';
   if (selected) sel.value = selected;
 }
 function fillPessoaSelectDespesa(selected){
@@ -1439,18 +1468,78 @@ async function saveDespesa(){
   goTab('lancamentos');
 }
 function openBaixaModal(id){
+  const d = D.lancamentos.find(x=>x.id===id) || {};
   document.getElementById('bxId').value = id;
-  fillContaSelectInto('bxConta', null);
+  document.getElementById('bxValorOriginal').textContent = fmtBRL(d.valor_total);
+  document.getElementById('bxDesconto').value = 0;
+  document.getElementById('bxJurosMulta').value = 0;
+  calcBaixaDespesaTotal();
+  fillContaSelectInto('bxConta', d.conta_id, true);
   document.getElementById('bxData').value = new Date().toISOString().slice(0,10);
   openModal('ovBaixa');
+}
+function calcBaixaDespesaTotal(){
+  const id = document.getElementById('bxId').value;
+  const d = D.lancamentos.find(x=>x.id===id) || {};
+  const original = Number(d.valor_total||0);
+  const desconto = Number(document.getElementById('bxDesconto').value)||0;
+  const jurosMulta = Number(document.getElementById('bxJurosMulta').value)||0;
+  const pago = original - desconto + jurosMulta;
+  document.getElementById('bxValorPago').textContent = fmtBRL(pago);
+  return pago;
 }
 async function confirmBaixa(){
   const id = document.getElementById('bxId').value;
   const conta = document.getElementById('bxConta').value;
   const data = document.getElementById('bxData').value;
+  const valor_desconto = Number(document.getElementById('bxDesconto').value)||0;
+  const valor_juros_multa = Number(document.getElementById('bxJurosMulta').value)||0;
+  const valor_pago = calcBaixaDespesaTotal();
   if (!conta){ alert('Cadastre e selecione uma conta de pagamento.'); return; }
-  await sb.from('faz_lancamentos').update({ status:'pago', conta_id: conta, data_pagamento: data, updated_at:new Date().toISOString() }).eq('id', id);
+  await sb.from('faz_lancamentos').update({
+    status:'pago', conta_id: conta, data_pagamento: data,
+    valor_desconto, valor_juros_multa, valor_pago,
+    updated_at:new Date().toISOString()
+  }).eq('id', id);
   closeModal('ovBaixa');
+  await reloadSafraScopedData();
+  goTab('lancamentos');
+}
+function openBaixaReceitaModal(id){
+  const r = D.lancamentos.find(x=>x.id===id) || {};
+  document.getElementById('rxId').value = id;
+  document.getElementById('rxValorOriginal').textContent = fmtBRL(r.valor_total);
+  document.getElementById('rxDesconto').value = 0;
+  document.getElementById('rxJurosMulta').value = 0;
+  calcBaixaReceitaTotal();
+  fillContaSelectInto('rxConta', r.conta_id, true);
+  document.getElementById('rxData').value = new Date().toISOString().slice(0,10);
+  openModal('ovBaixaReceita');
+}
+function calcBaixaReceitaTotal(){
+  const id = document.getElementById('rxId').value;
+  const r = D.lancamentos.find(x=>x.id===id) || {};
+  const original = Number(r.valor_total||0);
+  const desconto = Number(document.getElementById('rxDesconto').value)||0;
+  const jurosMulta = Number(document.getElementById('rxJurosMulta').value)||0;
+  const recebido = original - desconto + jurosMulta;
+  document.getElementById('rxValorPago').textContent = fmtBRL(recebido);
+  return recebido;
+}
+async function confirmBaixaReceita(){
+  const id = document.getElementById('rxId').value;
+  const conta = document.getElementById('rxConta').value;
+  const data = document.getElementById('rxData').value;
+  const valor_desconto = Number(document.getElementById('rxDesconto').value)||0;
+  const valor_juros_multa = Number(document.getElementById('rxJurosMulta').value)||0;
+  const valor_pago = calcBaixaReceitaTotal();
+  if (!conta){ alert('Cadastre e selecione uma conta de recebimento.'); return; }
+  await sb.from('faz_lancamentos').update({
+    status:'pago', conta_id: conta, data_pagamento: data,
+    valor_desconto, valor_juros_multa, valor_pago,
+    updated_at:new Date().toISOString()
+  }).eq('id', id);
+  closeModal('ovBaixaReceita');
   await reloadSafraScopedData();
   goTab('lancamentos');
 }
@@ -1542,6 +1631,7 @@ function openReceitaModal(id){
     document.getElementById('rcContrato').value = r.contrato_id;
     onRcContratoChange();
   }
+  document.getElementById('rcVencimento').value = r.data_vencimento || '';
   calcReceitaTotal();
   openModal('ovReceita');
 }
@@ -1560,6 +1650,7 @@ async function saveReceita(){
   const valor_total = qtd*valorUn;
   const operacional = grupo==='Receita' ? (document.getElementById('rcOperacional').value==='sim') : null;
   const pessoa_id = document.getElementById('rcPessoa').value || null;
+  const data_vencimento = document.getElementById('rcVencimento').value || null;
 
   if (!data){ alert('Informe a data.'); return; }
   if (!fazenda_id){ alert('Selecione a fazenda.'); return; }
@@ -1585,11 +1676,11 @@ async function saveReceita(){
   const payload = {
     tipo:'receita', data, categoria_id, subcategoria_id, operacional,
     fazenda_id, descricao: produto, quantidade: qtd, valor_unitario: valorUn, valor_total,
-    conta_id, pessoa_id, origem_produto, contrato_id,
+    conta_id, pessoa_id, origem_produto, contrato_id, data_vencimento,
     safra_id: D.safraAtual, updated_at: new Date().toISOString()
   };
   if (id) await sb.from('faz_lancamentos').update(payload).eq('id', id);
-  else await sb.from('faz_lancamentos').insert(payload);
+  else await sb.from('faz_lancamentos').insert({ ...payload, status:'pendente' });
   closeModal('ovReceita');
   await reloadSafraScopedData();
   goTab('lancamentos');
