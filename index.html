@@ -161,6 +161,7 @@ tr:last-child td{border-bottom:none;}
     <div class="navItem" data-tab="planejamento" onclick="goTab('planejamento')">🎯 Planejamento</div>
     <div class="navItem" data-tab="contratos" onclick="goTab('contratos')">📄 Contratos</div>
     <div class="navItem" data-tab="cadastros" onclick="goTab('cadastros')">🗂️ Cadastros</div>
+    <div class="navItem" data-tab="comparativo" onclick="goTab('comparativo')">🔍 Comparativo</div>
     <button class="logout" onclick="doLogout()">← Sair</button>
   </div>
 
@@ -185,6 +186,7 @@ tr:last-child td{border-bottom:none;}
     <div id="tab-planejamento" class="tabPane" style="display:none"></div>
     <div id="tab-contratos" class="tabPane" style="display:none"></div>
     <div id="tab-cadastros" class="tabPane" style="display:none"></div>
+    <div id="tab-comparativo" class="tabPane" style="display:none"></div>
   </div>
 </div>
 
@@ -924,6 +926,7 @@ async function renderCurrentTab(){
   if (D.currentTab==='planejamento') await renderPlanejamento();
   if (D.currentTab==='contratos') renderContratos();
   if (D.currentTab==='cadastros') await renderCadastros();
+  if (D.currentTab==='comparativo') renderComparativo();
 }
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
 function openModal(id){ document.getElementById(id).classList.add('show'); }
@@ -2169,6 +2172,112 @@ async function savePlanejamentoVenda(){
   closeModal('ovPlanejamentoVenda');
   await reloadSafraScopedData();
   goTab('planejamento');
+}
+
+// ================= COMPARATIVO DE PRODUTOS =================
+// Busca em TODAS as safras (não apenas a selecionada), pois o objetivo
+// aqui é justamente comparar preços pagos ao longo do tempo.
+function renderComparativo(){
+  const el = document.getElementById('tab-comparativo');
+  el.innerHTML = `
+    <div class="pageTitle">Comparativo de Produtos</div>
+    <div class="pageDesc">Pesquise um produto, peça ou insumo e veja o histórico de preços pagos em todas as safras</div>
+    <div class="card">
+      <div class="field">
+        <label>Pesquisar</label>
+        <div style="display:flex; gap:8px;">
+          <input id="cpBusca" placeholder="Ex: semente 1234, ureia, óleo hidráulico..." style="flex:1;" onkeydown="if(event.key==='Enter'){ event.preventDefault(); buscarComparativo(); }">
+          <button class="btn small" style="width:auto;" onclick="buscarComparativo()">Buscar</button>
+        </div>
+      </div>
+    </div>
+    <div id="cpResultados"></div>`;
+  document.getElementById('cpBusca').focus();
+}
+async function buscarComparativo(){
+  const termo = document.getElementById('cpBusca').value.trim();
+  const resEl = document.getElementById('cpResultados');
+  if (!termo){ resEl.innerHTML = ''; return; }
+  resEl.innerHTML = `<div class="empty">Buscando...</div>`;
+
+  const [itensRes, lancRes] = await Promise.all([
+    sb.from('faz_lancamento_itens')
+      .select('descricao,quantidade,valor_unitario,valor_total,lancamento_id,faz_lancamentos(data,safra_id,fazenda_id,pessoa_id,numero_nota)')
+      .ilike('descricao', `%${termo}%`),
+    sb.from('faz_lancamentos')
+      .select('id,descricao,quantidade,valor_unitario,valor_total,data,safra_id,fazenda_id,pessoa_id,numero_nota')
+      .eq('tipo','despesa')
+      .ilike('descricao', `%${termo}%`)
+  ]);
+
+  if (itensRes.error || lancRes.error){
+    resEl.innerHTML = `<div class="empty"><b>Erro na busca</b>${esc((itensRes.error||lancRes.error).message)}</div>`;
+    return;
+  }
+
+  const itensEncontrados = itensRes.data || [];
+  const lancComItem = new Set(itensEncontrados.map(i=>i.lancamento_id));
+  const linhas = [];
+
+  itensEncontrados.forEach(i=>{
+    const l = i.faz_lancamentos || {};
+    linhas.push({
+      descricao: i.descricao, quantidade: i.quantidade, valor_unitario: i.valor_unitario, valor_total: i.valor_total,
+      data: l.data, safra_id: l.safra_id, fazenda_id: l.fazenda_id, pessoa_id: l.pessoa_id, numero_nota: l.numero_nota
+    });
+  });
+  (lancRes.data||[]).forEach(l=>{
+    if (lancComItem.has(l.id)) return; // já coberto pela lista de itens acima
+    linhas.push({
+      descricao: l.descricao, quantidade: l.quantidade, valor_unitario: l.valor_unitario, valor_total: l.valor_total,
+      data: l.data, safra_id: l.safra_id, fazenda_id: l.fazenda_id, pessoa_id: l.pessoa_id, numero_nota: l.numero_nota
+    });
+  });
+
+  linhas.sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  renderComparativoResultados(linhas, termo);
+}
+function renderComparativoResultados(linhas, termo){
+  const el = document.getElementById('cpResultados');
+  if (!linhas.length){
+    el.innerHTML = `<div class="card"><div class="empty"><b>Nenhum resultado</b>Nenhuma despesa encontrada com "${esc(termo)}".</div></div>`;
+    return;
+  }
+  const valoresUnit = linhas.map(l=>Number(l.valor_unitario)||0).filter(v=>v>0);
+  const menor = valoresUnit.length ? Math.min(...valoresUnit) : null;
+  const maior = valoresUnit.length ? Math.max(...valoresUnit) : null;
+  const media = valoresUnit.length ? valoresUnit.reduce((a,b)=>a+b,0)/valoresUnit.length : null;
+  const ordenadoPorData = [...linhas].filter(l=>l.data).sort((a,b)=>a.data.localeCompare(b.data));
+  const primeiro = ordenadoPorData[0];
+  const ultimo = ordenadoPorData[ordenadoPorData.length-1];
+  const variacao = (primeiro && ultimo && primeiro!==ultimo && Number(primeiro.valor_unitario)>0)
+    ? ((Number(ultimo.valor_unitario)-Number(primeiro.valor_unitario))/Number(primeiro.valor_unitario)*100)
+    : null;
+
+  el.innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><div class="lbl">Ocorrências encontradas</div><div class="val">${linhas.length}</div></div>
+      <div class="kpi"><div class="lbl">Menor valor unitário</div><div class="val">${menor!=null?fmtBRL(menor):'—'}</div></div>
+      <div class="kpi"><div class="lbl">Maior valor unitário</div><div class="val">${maior!=null?fmtBRL(maior):'—'}</div></div>
+      <div class="kpi"><div class="lbl">Preço médio</div><div class="val">${media!=null?fmtBRL(media):'—'}</div></div>
+      <div class="kpi"><div class="lbl">Variação (1ª → última compra)</div><div class="val ${variacao!=null && variacao>0?'orange':variacao!=null && variacao<0?'red':''}">${fmtPct(variacao)}</div></div>
+    </div>
+    <div class="card">
+      <div class="cardHead"><h3>Histórico de compras</h3></div>
+      <table><thead><tr><th>Data</th><th>Safra</th><th>Fazenda</th><th>Fornecedor</th><th>Descrição</th><th>Qtd</th><th>Valor unit.</th><th>Valor total</th><th>Nº nota</th></tr></thead><tbody>
+        ${linhas.map(l=>`<tr>
+          <td>${fmtDate(l.data)}</td>
+          <td>${esc(D.safras.find(s=>s.id===l.safra_id)?.nome || '—')}</td>
+          <td>${esc(D.fazendas.find(f=>f.id===l.fazenda_id)?.nome || '—')}</td>
+          <td>${esc(D.pessoas.find(p=>p.id===l.pessoa_id)?.nome || '—')}</td>
+          <td>${esc(l.descricao||'—')}</td>
+          <td>${l.quantidade!=null ? Number(l.quantidade).toLocaleString('pt-BR',{maximumFractionDigits:2}) : '—'}</td>
+          <td>${l.valor_unitario!=null ? fmtBRL(l.valor_unitario) : '—'}</td>
+          <td>${fmtBRL(l.valor_total)}</td>
+          <td>${esc(l.numero_nota||'—')}</td>
+        </tr>`).join('')}
+      </tbody></table>
+    </div>`;
 }
 
 // ================= CONTRATOS =================
