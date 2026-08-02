@@ -108,12 +108,15 @@ tr:last-child td{border-bottom:none;}
 
 /* modal */
 .overlay{display:none; position:fixed; inset:0; background:rgba(44,66,48,.45); align-items:center; justify-content:center; z-index:50; padding:20px;}
+.overlay.stacked{ z-index:60; }
 .overlay.show{display:flex;}
 .modal{background:#fff; width:520px; max-width:100%; border-radius:16px; padding:26px 28px; max-height:88vh; overflow-y:auto;}
 .modal h3{font-size:21px; color:var(--verde2); margin-bottom:18px; font-weight:600; font-family:'Poppins',sans-serif;}
 .modalActions{display:flex; gap:10px; margin-top:20px;}
 .totalLine{display:flex; justify-content:space-between; padding:10px 4px; font-size:15px; font-weight:600; color:var(--verde2); border-top:1.5px dashed var(--linha); margin:6px 0 14px;}
 .saldoBox{font-size:12.5px; color:var(--verde2); background:var(--creme); border-radius:8px; padding:9px 12px; margin-top:8px;}
+#dsItensBody input{width:100%; padding:7px 8px; border:1.5px solid var(--linha); border-radius:7px; font-size:12.5px;}
+#dsItensBody td{padding:5px 6px;}
 
 @media(max-width:820px){
   #app.show{grid-template-columns:1fr;}
@@ -272,7 +275,7 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div></div>
 
-<div class="overlay" id="ovPessoaQuick"><div class="modal" style="width:380px">
+<div class="overlay stacked" id="ovPessoaQuick"><div class="modal" style="width:380px">
   <h3 id="pqModalTitle">Novo Cadastro</h3>
   <input type="hidden" id="pqContext">
   <div class="field"><label>Nome</label><input id="pqNome" placeholder="Nome"></div>
@@ -386,12 +389,15 @@ tr:last-child td{border-bottom:none;}
     </div>
   </div>
   <div class="field"><label>Fazenda</label><select id="dsFazenda"></select></div>
-  <div class="field"><label>Descrição / produto</label><input id="dsDescricao" placeholder="Descreva a despesa"></div>
-  <div class="grid2">
-    <div class="field"><label>Quantidade</label><input id="dsQtd" type="number" step="0.01" oninput="calcDespesaTotal()"></div>
-    <div class="field"><label>Valor unitário (R$)</label><input id="dsValorUn" type="number" step="0.01" oninput="calcDespesaTotal()"></div>
+  <div class="field">
+    <label>Itens da nota</label>
+    <table style="width:100%; margin-bottom:8px;">
+      <thead><tr><th style="width:30px;">#</th><th>Descrição</th><th style="width:80px;">Qtd</th><th style="width:110px;">Valor unit.</th><th style="width:100px;">Total</th><th style="width:30px;"></th></tr></thead>
+      <tbody id="dsItensBody"></tbody>
+    </table>
+    <button type="button" class="btn small secondary" style="width:auto" onclick="addDsItemRow()">+ Adicionar item</button>
   </div>
-  <div class="totalLine"><span>Valor total</span><span id="dsTotalDisplay">R$ 0,00</span></div>
+  <div class="totalLine"><span>Valor total da nota</span><span id="dsTotalDisplay">R$ 0,00</span></div>
   <div class="field">
     <label>Fornecedor (opcional)</label>
     <div style="display:flex; gap:8px;">
@@ -526,7 +532,7 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div></div>
 
-<div class="overlay" id="ovTalhaoQuick"><div class="modal" style="width:380px">
+<div class="overlay stacked" id="ovTalhaoQuick"><div class="modal" style="width:380px">
   <h3>Novo Talhão</h3>
   <input type="hidden" id="tqFazendaId">
   <div class="field"><label>Nome/identificação</label><input id="tqNome" placeholder="Ex: Talhão 3"></div>
@@ -550,7 +556,7 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div></div>
 
-<div class="overlay" id="ovMaquinaQuick"><div class="modal" style="width:380px">
+<div class="overlay stacked" id="ovMaquinaQuick"><div class="modal" style="width:380px">
   <h3>Nova Máquina</h3>
   <div class="field"><label>Nome/identificação</label><input id="mqNome" placeholder="Ex: Trator John Deere 6110J"></div>
   <div class="field"><label>Tipo (opcional)</label>
@@ -665,7 +671,7 @@ const sb = supabase.createClient(SB_URL, SB_KEY);
 // ================= STATE =================
 let D = {
   fazendas:[], safras:[], safraFazendas:{}, contas:[], pessoas:[], categorias:[], subcategorias:[], talhoes:[], maquinarios:[],
-  lancamentos:[], contratos:[], producao:[], planejamentoDespesas:[], planejamentoVendas:[],
+  lancamentos:[], contratos:[], producao:[], planejamentoDespesas:[], planejamentoVendas:[], lancamentoItens:[],
   safraAtual:null, fazendaFiltro:'', currentTab:'dashboard', cadastroSub:'fazendas', categoriaSearch:'', planejamentoSub:'custos'
 };
 let LF = { tipo:'todos', categoria:'todas', fazenda:'', conta:'', dataIni:'', dataFim:'' };
@@ -878,8 +884,16 @@ async function reloadSafraScopedData(){
     D.producao = pr.data || [];
     D.planejamentoDespesas = pd.data || [];
     D.planejamentoVendas = pv.data || [];
+
+    const despesaIds = D.lancamentos.filter(l=>l.tipo==='despesa').map(l=>l.id);
+    if (despesaIds.length){
+      const { data: itens } = await sb.from('faz_lancamento_itens').select('*').in('lancamento_id', despesaIds);
+      D.lancamentoItens = itens || [];
+    } else {
+      D.lancamentoItens = [];
+    }
   } else {
-    D.lancamentos = []; D.contratos = []; D.producao = []; D.planejamentoDespesas = []; D.planejamentoVendas = [];
+    D.lancamentos = []; D.contratos = []; D.producao = []; D.planejamentoDespesas = []; D.planejamentoVendas = []; D.lancamentoItens = [];
   }
   await renderCurrentTab();
 }
@@ -1375,10 +1389,36 @@ function onDsCategoriaSelChange(preserveSubId, preserveMaquinaId){
   document.getElementById('dsMaquinaWrap').style.display = showMaquina ? 'block' : 'none';
   if (showMaquina) fillMaquinaSelect(preserveMaquinaId||null);
 }
+let dsItensAtual = [];
+function renderDsItensBody(){
+  const tbody = document.getElementById('dsItensBody');
+  tbody.innerHTML = dsItensAtual.map((it, idx)=>`
+    <tr>
+      <td>${idx+1}</td>
+      <td><input type="text" value="${esc(it.descricao)}" oninput="updateDsItem(${idx},'descricao',this.value)" placeholder="Ex: peça, insumo..."></td>
+      <td><input type="number" step="0.01" value="${it.quantidade}" oninput="updateDsItem(${idx},'quantidade',this.value)"></td>
+      <td><input type="number" step="0.01" value="${it.valor_unitario}" oninput="updateDsItem(${idx},'valor_unitario',this.value)"></td>
+      <td id="dsItemTotal${idx}">${fmtBRL((Number(it.quantidade)||0)*(Number(it.valor_unitario)||0))}</td>
+      <td><button type="button" class="iconBtn" onclick="removeDsItem(${idx})">✕</button></td>
+    </tr>`).join('');
+  calcDespesaTotal();
+}
+function addDsItemRow(){
+  dsItensAtual.push({ descricao:'', quantidade:1, valor_unitario:0 });
+  renderDsItensBody();
+}
+function updateDsItem(idx, field, value){
+  dsItensAtual[idx][field] = field==='descricao' ? value : (Number(value)||0);
+  const cell = document.getElementById('dsItemTotal'+idx);
+  if (cell) cell.textContent = fmtBRL((Number(dsItensAtual[idx].quantidade)||0)*(Number(dsItensAtual[idx].valor_unitario)||0));
+  calcDespesaTotal();
+}
+function removeDsItem(idx){
+  dsItensAtual.splice(idx,1);
+  renderDsItensBody();
+}
 function calcDespesaTotal(){
-  const q = Number(document.getElementById('dsQtd').value)||0;
-  const v = Number(document.getElementById('dsValorUn').value)||0;
-  const t = q*v;
+  const t = dsItensAtual.reduce((a,it)=>a+(Number(it.quantidade)||0)*(Number(it.valor_unitario)||0), 0);
   document.getElementById('dsTotalDisplay').textContent = fmtBRL(t);
   return t;
 }
@@ -1415,14 +1455,21 @@ function openDespesaModal(id){
   onDsCategoriaChange(d.categoria_id, d.subcategoria_id, d.maquinario_id);
   document.getElementById('dsTipo').value = d.tipo_fixo_variavel || 'variavel';
   fillFazendaSelectSafra('dsFazenda', d.fazenda_id);
-  document.getElementById('dsDescricao').value = d.descricao || '';
-  document.getElementById('dsQtd').value = d.quantidade || '';
-  document.getElementById('dsValorUn').value = d.valor_unitario || '';
   fillPessoaSelectDespesa(d.pessoa_id);
   fillContaSelectInto('dsConta', d.conta_id);
   document.getElementById('dsNota').value = d.numero_nota || '';
   document.getElementById('dsVencimento').value = d.data_vencimento || '';
-  calcDespesaTotal();
+
+  const itensExistentes = (D.lancamentoItens||[]).filter(i=>i.lancamento_id===id).sort((a,b)=>(a.item_numero||0)-(b.item_numero||0));
+  if (itensExistentes.length){
+    dsItensAtual = itensExistentes.map(i=>({ descricao: i.descricao, quantidade: Number(i.quantidade), valor_unitario: Number(i.valor_unitario) }));
+  } else if (id){
+    // Despesa lançada antes da tabela de itens — semeia 1 item a partir dos campos antigos.
+    dsItensAtual = [{ descricao: d.descricao||'', quantidade: Number(d.quantidade)||1, valor_unitario: Number(d.valor_unitario)||0 }];
+  } else {
+    dsItensAtual = [{ descricao:'', quantidade:1, valor_unitario:0 }];
+  }
+  renderDsItensBody();
   openModal('ovDespesa');
 }
 async function saveDespesa(){
@@ -1433,20 +1480,18 @@ async function saveDespesa(){
   const cat = D.categorias.find(c=>c.id===categoria_id);
   const tipo_fixo_variavel = grupo==='Despesa' ? document.getElementById('dsTipo').value : null;
   const fazenda_id = document.getElementById('dsFazenda').value;
-  const descricao = document.getElementById('dsDescricao').value.trim();
-  const qtd = Number(document.getElementById('dsQtd').value)||0;
-  const valorUn = Number(document.getElementById('dsValorUn').value)||0;
-  const valor_total = qtd*valorUn;
   const pessoa_id = document.getElementById('dsPessoa').value || null;
   const conta_id = document.getElementById('dsConta').value;
   const numero_nota = document.getElementById('dsNota').value.trim();
   const data_vencimento = document.getElementById('dsVencimento').value || null;
   const data = document.getElementById('dsData').value;
 
+  const itensValidos = dsItensAtual.filter(it=>it.descricao && it.descricao.trim());
+
   if (!data){ alert('Informe a data.'); return; }
   if (!fazenda_id){ alert('Selecione a fazenda.'); return; }
-  if (!descricao){ alert('Informe a descrição/produto.'); return; }
-  if (!qtd || !valorUn){ alert('Informe quantidade e valor unitário.'); return; }
+  if (!itensValidos.length){ alert('Adicione ao menos um item com descrição.'); return; }
+  if (itensValidos.some(it=>!it.quantidade || !it.valor_unitario)){ alert('Informe quantidade e valor unitário em todos os itens.'); return; }
   if (!conta_id){ alert('Selecione a conta de pagamento.'); return; }
 
   let maquinario_id = null;
@@ -1455,14 +1500,38 @@ async function saveDespesa(){
     if (!maquinario_id){ alert('Selecione qual máquina é a manutenção.'); return; }
   }
 
+  const valor_total = itensValidos.reduce((a,it)=>a+(Number(it.quantidade)||0)*(Number(it.valor_unitario)||0), 0);
+  const descricao = itensValidos.length===1
+    ? itensValidos[0].descricao.trim()
+    : itensValidos[0].descricao.trim() + ` (+${itensValidos.length-1} ${itensValidos.length-1===1?'item':'itens'})`;
+
   const payload = {
     tipo:'despesa', data, categoria_id, subcategoria_id, tipo_fixo_variavel,
-    fazenda_id, descricao, quantidade: qtd, valor_unitario: valorUn, valor_total,
+    fazenda_id, descricao, quantidade: null, valor_unitario: null, valor_total,
     pessoa_id, conta_id, numero_nota, data_vencimento, maquinario_id,
     safra_id: D.safraAtual, updated_at: new Date().toISOString()
   };
-  if (id) await sb.from('faz_lancamentos').update(payload).eq('id', id);
-  else await sb.from('faz_lancamentos').insert({ ...payload, status:'pendente' });
+  let lancId = id;
+  if (id){
+    const { error } = await sb.from('faz_lancamentos').update(payload).eq('id', id);
+    if (error){ alert('Erro ao salvar despesa: '+error.message); return; }
+  } else {
+    const { data: inserted, error } = await sb.from('faz_lancamentos').insert({ ...payload, status:'pendente' }).select();
+    if (error){ alert('Erro ao salvar despesa: '+error.message); return; }
+    lancId = inserted[0].id;
+  }
+
+  await sb.from('faz_lancamento_itens').delete().eq('lancamento_id', lancId);
+  const itensParaSalvar = itensValidos.map((it,idx)=>({
+    lancamento_id: lancId,
+    item_numero: idx+1,
+    descricao: it.descricao.trim(),
+    quantidade: Number(it.quantidade)||0,
+    valor_unitario: Number(it.valor_unitario)||0,
+    valor_total: (Number(it.quantidade)||0)*(Number(it.valor_unitario)||0)
+  }));
+  await sb.from('faz_lancamento_itens').insert(itensParaSalvar);
+
   closeModal('ovDespesa');
   await reloadSafraScopedData();
   goTab('lancamentos');
