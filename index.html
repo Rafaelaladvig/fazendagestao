@@ -1602,7 +1602,7 @@ async function saveDespesa(){
     const { error } = await sb.from('faz_lancamentos').update(payload).eq('id', id);
     if (error){ alert('Erro ao salvar despesa: '+error.message); return; }
   } else {
-    const autoBaixado = dataEhHojeOuAnterior(data);
+    const autoBaixado = deveAutoBaixar(data_vencimento);
     const insertPayload = { ...payload, status: autoBaixado ? 'pago' : 'pendente' };
     if (autoBaixado){ insertPayload.data_pagamento = data; insertPayload.valor_pago = valor_total; }
     const { data: inserted, error } = await sb.from('faz_lancamentos').insert(insertPayload).select();
@@ -1842,7 +1842,7 @@ async function saveReceita(){
   if (id){
     await sb.from('faz_lancamentos').update(payload).eq('id', id);
   } else {
-    const autoBaixado = dataEhHojeOuAnterior(data);
+    const autoBaixado = deveAutoBaixar(data_vencimento);
     const insertPayload = { ...payload, status: autoBaixado ? 'pago' : 'pendente' };
     if (autoBaixado){ insertPayload.data_pagamento = data; insertPayload.valor_pago = valor_total; }
     await sb.from('faz_lancamentos').insert(insertPayload);
@@ -1851,10 +1851,11 @@ async function saveReceita(){
   await reloadSafraScopedData();
   goTab('lancamentos');
 }
-function dataEhHojeOuAnterior(dataStr){
-  if (!dataStr) return false;
-  const hoje = new Date().toISOString().slice(0,10);
-  return dataStr <= hoje;
+function deveAutoBaixar(data_vencimento){
+  // Sem data de vencimento preenchida = considerado já pago/recebido no ato.
+  // Com data de vencimento preenchida = fica pendente, aguardando baixa manual,
+  // independente de a data ser passada, hoje ou futura.
+  return !data_vencimento;
 }
 
 // ================= PRODUÇÃO =================
