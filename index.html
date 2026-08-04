@@ -631,9 +631,10 @@ tr:last-child td{border-bottom:none;}
   <h3 id="pvModalTitle">Cenário</h3>
   <input type="hidden" id="pvId">
   <div class="grid2">
-    <div class="field"><label>Sacas previstas</label><input id="pvQtd" type="number" step="0.01"></div>
-    <div class="field"><label>Preço previsto (R$/sc)</label><input id="pvPreco" type="number" step="0.01"></div>
+    <div class="field"><label>Sacas previstas por hectare (sc/ha)</label><input id="pvQtd" type="number" step="0.01" oninput="calcPlanejamentoVendaPreview()"></div>
+    <div class="field"><label>Preço previsto (R$/sc)</label><input id="pvPreco" type="number" step="0.01" oninput="calcPlanejamentoVendaPreview()"></div>
   </div>
+  <div class="saldoBox" id="pvPreview"></div>
   <div class="field"><label>Observações (opcional)</label><input id="pvObservacoes" placeholder="Premissas do cenário"></div>
   <div class="modalActions">
     <button class="btn secondary" onclick="closeModal('ovPlanejamentoVenda')">Cancelar</button>
@@ -2209,22 +2210,25 @@ async function ensureCenariosVenda(){
 function tplPlanejamentoVendas(){
   const despesasF = filterByFazendaGlobal(D.lancamentos.filter(l=>l.tipo==='despesa'));
   const receitasF = filterByFazendaGlobal(D.lancamentos.filter(l=>l.tipo==='receita'));
-  const m = calcDashboardMetrics(despesasF, receitasF);
+  const totalHa = getTotalHaSafra();
+  const m = calcDashboardMetrics(despesasF, receitasF, totalHa);
   const ordem = { pessimista:0, realista:1, otimista:2 };
   const labels = { pessimista:'Pessimista', realista:'Realista', otimista:'Otimista' };
   const linhas = [...D.planejamentoVendas].sort((a,b)=>ordem[a.cenario]-ordem[b.cenario]);
   return `
     <div class="card">
       <div class="cardHead"><h3>Cenários de venda</h3></div>
-      <div class="pageDesc" style="margin-bottom:14px;">Compare quanto a safra pode render em cada cenário de produção e preço, frente ao custo de produção já lançado.</div>
-      <table><thead><tr><th>Cenário</th><th>Sacas previstas</th><th>Preço previsto</th><th>Receita projetada</th><th>Margem vs custo hoje</th><th>Margem vs custo projetado</th><th></th></tr></thead><tbody>
+      <div class="pageDesc" style="margin-bottom:14px;">Compare quanto a safra pode render em cada cenário de produtividade e preço, frente ao custo de produção já lançado. Receita = sc/ha × área (${totalHa>0?fmtSacas(totalHa).replace(' sc',' ha'):'HA não cadastrado'}) × preço.</div>
+      <table><thead><tr><th>Cenário</th><th>Sc/ha previstas</th><th>Sacas totais</th><th>Preço previsto</th><th>Receita projetada</th><th>Margem vs custo hoje</th><th>Margem vs custo projetado</th><th></th></tr></thead><tbody>
         ${linhas.map(v=>{
-          const receita = Number(v.quantidade_sacas||0) * Number(v.preco_unitario||0);
+          const sacasTotal = Number(v.quantidade_sacas||0) * totalHa;
+          const receita = sacasTotal * Number(v.preco_unitario||0);
           const margemHoje = receita - m.custoHoje;
           const margemProj = receita - m.custoProjetado;
           return `<tr>
             <td><b>${labels[v.cenario]}</b></td>
-            <td>${fmtSacas(v.quantidade_sacas)}</td>
+            <td>${fmtSacas(v.quantidade_sacas)}/ha</td>
+            <td>${fmtSacas(sacasTotal)}</td>
             <td>${fmtBRL(v.preco_unitario)}/sc</td>
             <td>${fmtBRL(receita)}</td>
             <td style="${margemHoje<0?'color:var(--vermelho); font-weight:600;':'color:var(--pago); font-weight:600;'}">${fmtBRL(margemHoje)}</td>
@@ -2234,13 +2238,24 @@ function tplPlanejamentoVendas(){
         }).join('')}
         <tr style="background:var(--creme2)">
           <td><b>Realizado até agora</b></td>
-          <td>${fmtSacas(m.totalQtdProduto)}</td>
+          <td colspan="2">${fmtSacas(m.totalQtdProduto)}</td>
           <td>${m.precoMedio>0?fmtBRL(m.precoMedio)+'/sc':'—'}</td>
           <td>${fmtBRL(m.totalReceitaValor)}</td>
           <td colspan="2" style="color:var(--muted)">Referência real, não editável</td>
         </tr>
       </tbody></table>
+      ${totalHa<=0 ? `<div class="pageDesc" style="margin-top:10px;">Cadastre a área (HA) da(s) fazenda(s) desta safra para calcular a receita projetada.</div>` : ''}
     </div>`;
+}
+function calcPlanejamentoVendaPreview(){
+  const totalHa = getTotalHaSafra();
+  const scHa = Number(document.getElementById('pvQtd').value)||0;
+  const preco = Number(document.getElementById('pvPreco').value)||0;
+  const sacasTotal = scHa * totalHa;
+  const receita = sacasTotal * preco;
+  document.getElementById('pvPreview').innerHTML = totalHa>0
+    ? `Área considerada: <b>${totalHa.toLocaleString('pt-BR')} ha</b> · Sacas totais: <b>${fmtSacas(sacasTotal)}</b> · Receita projetada: <b>${fmtBRL(receita)}</b>`
+    : `Cadastre a área (HA) da fazenda para calcular a receita projetada.`;
 }
 function openPlanejamentoVendaModal(id){
   const v = D.planejamentoVendas.find(x=>x.id===id) || {};
@@ -2250,6 +2265,7 @@ function openPlanejamentoVendaModal(id){
   document.getElementById('pvQtd').value = v.quantidade_sacas || '';
   document.getElementById('pvPreco').value = v.preco_unitario || '';
   document.getElementById('pvObservacoes').value = v.observacoes || '';
+  calcPlanejamentoVendaPreview();
   openModal('ovPlanejamentoVenda');
 }
 async function savePlanejamentoVenda(){
