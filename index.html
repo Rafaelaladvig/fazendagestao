@@ -512,16 +512,57 @@ tr:last-child td{border-bottom:none;}
 <div class="overlay" id="ovProducao"><div class="modal">
   <h3 id="prModalTitle">Nova Produção</h3>
   <input type="hidden" id="prId">
-  <div class="field"><label>Data</label><input id="prData" type="date"></div>
-  <div class="field"><label>Fazenda</label><select id="prFazenda" onchange="onProdFazendaChange()"></select></div>
+  <div class="grid2">
+    <div class="field"><label>Data</label><input id="prData" type="date"></div>
+    <div class="field"><label>Fazenda</label><select id="prFazenda" onchange="onProdFazendaChange()"></select></div>
+  </div>
   <div class="field">
-    <label>Talhão</label>
+    <label>Talhão (opcional)</label>
     <div style="display:flex; gap:8px;">
       <select id="prTalhao" style="flex:1"></select>
       <button type="button" class="btn small secondary" style="width:auto" onclick="openTalhaoQuick()">+</button>
     </div>
   </div>
-  <div class="field"><label>Quantidade líquida (sacas)</label><input id="prQtd" type="number" step="0.01" min="0.01"></div>
+
+  <div class="grid2">
+    <div class="field"><label>Peso bruto (kg)</label><input id="prKgBruto" type="number" step="0.01" oninput="calcProducaoPreview()"></div>
+    <div class="field"><label>Peso líquido (kg)</label><input id="prKgLiquido" type="number" step="0.01" oninput="calcProducaoPreview()"></div>
+  </div>
+  <div class="pageDesc" id="prSacasPreview" style="margin:-8px 0 14px;"></div>
+
+  <div class="field">
+    <label>Descontos de qualidade (opcional)</label>
+    <div class="grid3">
+      <div class="field"><label>Kg umidade</label><input id="prKgUmidade" type="number" step="0.01" oninput="calcProducaoPreview()"></div>
+      <div class="field"><label>Kg impureza</label><input id="prKgImpureza" type="number" step="0.01" oninput="calcProducaoPreview()"></div>
+      <div class="field"><label>Kg ardido</label><input id="prKgArdido" type="number" step="0.01" oninput="calcProducaoPreview()"></div>
+    </div>
+    <div class="field"><label>% umidade</label><input id="prPctUmidade" type="number" step="0.01" oninput="onPctUmidadeChange()"></div>
+    <div class="saldoBox" id="prDescontoPreview"></div>
+  </div>
+
+  <div class="field">
+    <label>Quantidade líquida (sacas)</label>
+    <input id="prQtd" type="number" step="0.01" min="0.01" readonly style="background:var(--creme);">
+  </div>
+
+  <div class="grid2">
+    <div class="field">
+      <label>Placa (opcional)</label>
+      <div style="display:flex; gap:8px;">
+        <select id="prVeiculo" style="flex:1"></select>
+        <button type="button" class="btn small secondary" style="width:auto" onclick="openVeiculoQuick()">+</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Motorista (opcional)</label>
+      <div style="display:flex; gap:8px;">
+        <select id="prMotorista" style="flex:1"></select>
+        <button type="button" class="btn small secondary" style="width:auto" onclick="openMotoristaQuick()">+</button>
+      </div>
+    </div>
+  </div>
+
   <div class="field">
     <label>Entregue para</label>
     <div style="display:flex; gap:8px;">
@@ -529,7 +570,7 @@ tr:last-child td{border-bottom:none;}
       <button type="button" class="btn small secondary" style="width:auto" onclick="openPessoaQuick('producao')">+</button>
     </div>
   </div>
-  <div class="field"><label>Observações (opcional)</label><input id="prObservacoes" placeholder="Romaneio, carga, placa, umidade..."></div>
+  <div class="field"><label>Observações (opcional)</label><input id="prObservacoes" placeholder="Nº do romaneio, carga..."></div>
   <div class="modalActions">
     <button class="btn secondary" onclick="closeModal('ovProducao')">Cancelar</button>
     <button class="btn" onclick="saveProducao()">Salvar</button>
@@ -557,6 +598,53 @@ tr:last-child td{border-bottom:none;}
   <div class="modalActions">
     <button class="btn secondary" onclick="closeModal('ovTalhao')">Cancelar</button>
     <button class="btn" onclick="saveTalhao()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay stacked" id="ovVeiculoQuick"><div class="modal" style="width:380px">
+  <h3>Novo Veículo</h3>
+  <div class="field"><label>Placa</label><input id="vqPlaca" placeholder="Ex: ABC1D23"></div>
+  <div class="field"><label>Modelo (opcional)</label><input id="vqModelo" placeholder="Ex: Volvo FH 540"></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovVeiculoQuick')">Cancelar</button>
+    <button class="btn" onclick="saveVeiculoQuick()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="ovVeiculo"><div class="modal" style="width:420px">
+  <h3 id="vModalTitle">Novo Veículo</h3>
+  <input type="hidden" id="vId">
+  <div class="field"><label>Placa</label><input id="vPlaca" placeholder="Ex: ABC1D23"></div>
+  <div class="field"><label>Modelo (opcional)</label><input id="vModelo" placeholder="Ex: Volvo FH 540"></div>
+  <div class="field"><label>Observações (opcional)</label><input id="vObservacoes" placeholder="Observações"></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovVeiculo')">Cancelar</button>
+    <button class="btn" onclick="saveVeiculo()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay stacked" id="ovMotoristaQuick"><div class="modal" style="width:380px">
+  <h3>Novo Motorista</h3>
+  <div class="field"><label>Nome</label><input id="mtqNome" placeholder="Nome do motorista"></div>
+  <div class="field"><label>Telefone (opcional)</label><input id="mtqTelefone" placeholder="Telefone"></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovMotoristaQuick')">Cancelar</button>
+    <button class="btn" onclick="saveMotoristaQuick()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="ovMotorista"><div class="modal" style="width:420px">
+  <h3 id="mtModalTitle">Novo Motorista</h3>
+  <input type="hidden" id="mtId">
+  <div class="field"><label>Nome</label><input id="mtNome" placeholder="Nome do motorista"></div>
+  <div class="grid2">
+    <div class="field"><label>CPF (opcional)</label><input id="mtDocumento" placeholder="CPF"></div>
+    <div class="field"><label>Telefone (opcional)</label><input id="mtTelefone" placeholder="Telefone"></div>
+  </div>
+  <div class="field"><label>Observações (opcional)</label><input id="mtObservacoes" placeholder="Observações"></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovMotorista')">Cancelar</button>
+    <button class="btn" onclick="saveMotorista()">Salvar</button>
   </div>
 </div></div>
 
@@ -676,6 +764,7 @@ const sb = supabase.createClient(SB_URL, SB_KEY);
 // ================= STATE =================
 let D = {
   fazendas:[], safras:[], safraFazendas:{}, contas:[], pessoas:[], categorias:[], subcategorias:[], talhoes:[], maquinarios:[],
+  veiculos:[], motoristas:[], producaoConsumo:[],
   lancamentos:[], contratos:[], producao:[], planejamentoDespesas:[], planejamentoVendas:[], lancamentoItens:[], saldosContasCache:[],
   safraAtual:null, fazendaFiltro:'', currentTab:'dashboard', cadastroSub:'fazendas', categoriaSearch:'', planejamentoSub:'custos'
 };
@@ -802,7 +891,7 @@ async function tryDelete(table, id){
 
 // ================= LOAD BASE =================
 async function loadBase(){
-  const [fz, sf, ct, ps, cat, sub, sfz, tl, mq] = await Promise.all([
+  const [fz, sf, ct, ps, cat, sub, sfz, tl, mq, vc, mt] = await Promise.all([
     sb.from('faz_fazendas').select('*').order('nome'),
     sb.from('faz_safras').select('*').order('created_at',{ascending:false}),
     sb.from('faz_contas').select('*').order('nome'),
@@ -811,7 +900,9 @@ async function loadBase(){
     sb.from('faz_subcategorias').select('*').order('ordem'),
     sb.from('faz_safra_fazendas').select('*'),
     sb.from('faz_talhoes').select('*').order('nome'),
-    sb.from('faz_maquinarios').select('*').order('nome')
+    sb.from('faz_maquinarios').select('*').order('nome'),
+    sb.from('faz_veiculos').select('*').order('placa'),
+    sb.from('faz_motoristas').select('*').order('nome')
   ]);
   D.fazendas = fz.data || [];
   D.safras = sf.data || [];
@@ -821,6 +912,8 @@ async function loadBase(){
   D.subcategorias = sub.data || [];
   D.talhoes = tl.data || [];
   D.maquinarios = mq.data || [];
+  D.veiculos = vc.data || [];
+  D.motoristas = mt.data || [];
   D.safraFazendas = {};
   (sfz.data || []).forEach(r=>{
     if (!D.safraFazendas[r.safra_id]) D.safraFazendas[r.safra_id] = [];
@@ -908,8 +1001,16 @@ async function reloadSafraScopedData(){
     } else {
       D.lancamentoItens = [];
     }
+
+    const producaoIds = D.producao.map(p=>p.id);
+    if (producaoIds.length){
+      const { data: consumo } = await sb.from('faz_producao_consumo').select('*').in('producao_id', producaoIds);
+      D.producaoConsumo = consumo || [];
+    } else {
+      D.producaoConsumo = [];
+    }
   } else {
-    D.lancamentos = []; D.contratos = []; D.producao = []; D.planejamentoDespesas = []; D.planejamentoVendas = []; D.lancamentoItens = [];
+    D.lancamentos = []; D.contratos = []; D.producao = []; D.planejamentoDespesas = []; D.planejamentoVendas = []; D.lancamentoItens = []; D.producaoConsumo = [];
   }
   await refreshSaldosContasCache();
   await renderCurrentTab();
@@ -1846,11 +1947,43 @@ async function saveReceita(){
     const autoBaixado = deveAutoBaixar(data_vencimento);
     const insertPayload = { ...payload, status: autoBaixado ? 'pago' : 'pendente' };
     if (autoBaixado){ insertPayload.data_pagamento = data; insertPayload.valor_pago = valor_total; }
-    await sb.from('faz_lancamentos').insert(insertPayload);
+    const { data: inserted, error } = await sb.from('faz_lancamentos').insert(insertPayload).select();
+    if (error){ alert('Erro ao salvar receita: '+error.message); return; }
+    if (origem_produto==='estoque' && cat){
+      await alocarConsumoFifo(inserted[0].id, cat.nome, D.safraAtual, qtd);
+    }
   }
   closeModal('ovReceita');
   await reloadSafraScopedData();
   goTab('lancamentos');
+}
+async function alocarConsumoFifo(lancamentoId, categoriaNome, safraId, quantidadeVendida){
+  if (!categoriaNome || quantidadeVendida<=0) return;
+  const safra = D.safras.find(s=>s.id===safraId);
+  if (!safra || normalizeStr(safra.produto_principal||'') !== normalizeStr(categoriaNome)) return;
+
+  const { data: producoesSafra } = await sb.from('faz_producao').select('id,data,quantidade_liquida_sacas').eq('safra_id', safraId).order('data',{ascending:true});
+  const producoes = producoesSafra || [];
+  if (!producoes.length) return;
+
+  const producaoIds = producoes.map(p=>p.id);
+  const { data: consumosExistentes } = await sb.from('faz_producao_consumo').select('producao_id,quantidade_sacas').in('producao_id', producaoIds);
+  const consumidoPorCarga = {};
+  (consumosExistentes||[]).forEach(c=>{ consumidoPorCarga[c.producao_id] = (consumidoPorCarga[c.producao_id]||0) + Number(c.quantidade_sacas||0); });
+
+  let restante = quantidadeVendida;
+  const alocacoes = [];
+  for (const p of producoes){
+    if (restante <= 0.0001) break;
+    const saldo = Number(p.quantidade_liquida_sacas||0) - (consumidoPorCarga[p.id]||0);
+    if (saldo <= 0.0001) continue;
+    const usar = Math.min(saldo, restante);
+    alocacoes.push({ producao_id: p.id, lancamento_id: lancamentoId, quantidade_sacas: usar });
+    restante -= usar;
+  }
+  if (alocacoes.length){
+    await sb.from('faz_producao_consumo').insert(alocacoes);
+  }
 }
 function deveAutoBaixar(data_vencimento){
   // Sem data de vencimento preenchida = considerado já pago/recebido no ato.
@@ -1880,12 +2013,20 @@ function tplGroupTable(groupObj, nameFn, total){
     }).join('')}
   </tbody></table>`;
 }
+function saldoCarga(producaoId){
+  const p = D.producao.find(x=>x.id===producaoId);
+  if (!p) return 0;
+  const consumido = D.producaoConsumo.filter(c=>c.producao_id===producaoId).reduce((a,c)=>a+Number(c.quantidade_sacas||0),0);
+  return Number(p.quantidade_liquida_sacas||0) - consumido;
+}
 function renderProducao(){
   const el = document.getElementById('tab-producao');
   if (!D.safraAtual){ el.innerHTML = noSafraMsg(); return; }
   const base = filterByFazendaGlobal(D.producao);
   const filtered = applyProducaoFilters(base);
   const totalSacas = filtered.reduce((a,b)=>a+Number(b.quantidade_liquida_sacas||0),0);
+  const totalConsumido = filtered.reduce((a,b)=>a+(Number(b.quantidade_liquida_sacas||0)-saldoCarga(b.id)),0);
+  const totalEstoque = totalSacas - totalConsumido;
   const porFazenda = groupSum(filtered, 'fazenda_id', p=>p.quantidade_liquida_sacas);
   const porTalhao = groupSum(filtered, 'talhao_id', p=>p.quantidade_liquida_sacas);
   const porPessoa = groupSum(filtered, 'pessoa_id', p=>p.quantidade_liquida_sacas);
@@ -1897,9 +2038,9 @@ function renderProducao(){
     <div class="pageDesc">Registro físico da colheita da safra selecionada${D.fazendaFiltro ? ' · filtrado por fazenda' : ''}</div>
     <div class="kpis">
       <div class="kpi"><div class="lbl">Produção líquida total</div><div class="val">${fmtSacas(totalSacas)}</div></div>
+      <div class="kpi"><div class="lbl">Estoque disponível</div><div class="val">${fmtSacas(totalEstoque)}</div></div>
       <div class="kpi"><div class="lbl">Lançamentos</div><div class="val">${filtered.length}</div></div>
       <div class="kpi"><div class="lbl">Fazendas com produção</div><div class="val">${Object.keys(porFazenda).length}</div></div>
-      <div class="kpi"><div class="lbl">Talhões colhidos</div><div class="val">${Object.keys(porTalhao).length}</div></div>
     </div>
     <div class="grid3">
       <div class="card"><div class="cardHead"><h3>Por fazenda</h3></div>${tplGroupTable(porFazenda, id=>D.fazendas.find(f=>f.id===id)?.nome, totalSacas)}</div>
@@ -1933,9 +2074,10 @@ function renderProducao(){
     </div>
     <div class="card">
       <div class="cardHead"><h3>Lançamentos de produção (${filtered.length})</h3></div>
-      ${filtered.length ? `<table><thead><tr><th>Data</th><th>Fazenda</th><th>Talhão</th><th>Sacas</th><th>Entregue para</th><th>Observações</th><th></th></tr></thead><tbody>
+      ${filtered.length ? `<table><thead><tr><th>Data</th><th>Fazenda</th><th>Talhão</th><th>Sacas</th><th>Saldo estoque</th><th>Entregue para</th><th>Observações</th><th></th></tr></thead><tbody>
         ${filtered.map(p=>renderProducaoRow(p)).join('')}
       </tbody></table>` : `<div class="empty"><b>Nenhum lançamento de produção</b>Registre a primeira colheita desta safra.</div>`}
+      <div class="pageDesc" style="margin-top:10px;">"Saldo estoque" é o que ainda não foi vendido dessa carga — vendas com origem "Estoque" descontam automaticamente da carga mais antiga primeiro.</div>
     </div>`;
   setProducaoFilterValues();
 }
@@ -1985,11 +2127,13 @@ function renderProducaoRow(p){
   const fazNome = D.fazendas.find(f=>f.id===p.fazenda_id)?.nome || '—';
   const talNome = D.talhoes.find(t=>t.id===p.talhao_id)?.nome || '—';
   const pesNome = D.pessoas.find(x=>x.id===p.pessoa_id)?.nome || '—';
+  const saldo = saldoCarga(p.id);
   return `<tr>
     <td>${fmtDate(p.data)}</td>
     <td>${esc(fazNome)}</td>
     <td>${esc(talNome)}</td>
     <td>${fmtSacas(p.quantidade_liquida_sacas)}</td>
+    <td>${saldo<=0.001 ? '<span class="badge liquidado">Esgotada</span>' : fmtSacas(saldo)}</td>
     <td>${esc(pesNome)}</td>
     <td>${esc(p.observacoes||'—')}</td>
     <td><button class="iconBtn" onclick="openProducaoModal('${p.id}')">Editar</button><button class="iconBtn" onclick="deleteProducao('${p.id}')">Excluir</button></td>
@@ -1998,7 +2142,7 @@ function renderProducaoRow(p){
 function fillTalhaoSelectFazenda(fazendaId, selected){
   const sel = document.getElementById('prTalhao');
   const list = D.talhoes.filter(t=>t.fazenda_id===fazendaId && (t.ativo || t.id===selected)).sort((a,b)=>a.nome.localeCompare(b.nome));
-  sel.innerHTML = list.length ? list.map(t=>`<option value="${t.id}">${esc(t.nome)}</option>`).join('') : '<option value="">Nenhum talhão cadastrado</option>';
+  sel.innerHTML = '<option value="">Nenhum</option>' + (list.length ? list.map(t=>`<option value="${t.id}">${esc(t.nome)}</option>`).join('') : '');
   if (selected) sel.value = selected;
 }
 function onProdFazendaChange(){
@@ -2031,6 +2175,78 @@ function fillPessoaSelectProducao(selected){
   sel.innerHTML = '<option value="">Selecione</option>' + list.map(p=>`<option value="${p.id}">${pessoaLabelCadastro(p)}</option>`).join('');
   sel.value = selected || '';
 }
+function fillVeiculoSelect(selected){
+  const sel = document.getElementById('prVeiculo');
+  const list = D.veiculos.filter(v=>v.ativo || v.id===selected).sort((a,b)=>a.placa.localeCompare(b.placa));
+  sel.innerHTML = '<option value="">Nenhum</option>' + list.map(v=>`<option value="${v.id}">${esc(v.placa)}${v.modelo?' — '+esc(v.modelo):''}</option>`).join('');
+  sel.value = selected || '';
+}
+function fillMotoristaSelect(selected){
+  const sel = document.getElementById('prMotorista');
+  const list = D.motoristas.filter(m=>m.ativo || m.id===selected).sort((a,b)=>a.nome.localeCompare(b.nome));
+  sel.innerHTML = '<option value="">Nenhum</option>' + list.map(m=>`<option value="${m.id}">${esc(m.nome)}</option>`).join('');
+  sel.value = selected || '';
+}
+function openVeiculoQuick(){
+  document.getElementById('vqPlaca').value = '';
+  document.getElementById('vqModelo').value = '';
+  openModal('ovVeiculoQuick');
+}
+async function saveVeiculoQuick(){
+  const placa = document.getElementById('vqPlaca').value.trim();
+  const modelo = document.getElementById('vqModelo').value.trim();
+  if (!placa){ alert('Informe a placa.'); return; }
+  const { data, error } = await sb.from('faz_veiculos').insert({ placa, modelo }).select();
+  if (error){ alert('Erro ao cadastrar veículo: '+error.message); return; }
+  const { data: list } = await sb.from('faz_veiculos').select('*').order('placa');
+  D.veiculos = list || [];
+  closeModal('ovVeiculoQuick');
+  fillVeiculoSelect(data[0].id);
+}
+function openMotoristaQuick(){
+  document.getElementById('mtqNome').value = '';
+  document.getElementById('mtqTelefone').value = '';
+  openModal('ovMotoristaQuick');
+}
+async function saveMotoristaQuick(){
+  const nome = document.getElementById('mtqNome').value.trim();
+  const telefone = document.getElementById('mtqTelefone').value.trim();
+  if (!nome){ alert('Informe o nome do motorista.'); return; }
+  const { data, error } = await sb.from('faz_motoristas').insert({ nome, telefone }).select();
+  if (error){ alert('Erro ao cadastrar motorista: '+error.message); return; }
+  const { data: list } = await sb.from('faz_motoristas').select('*').order('nome');
+  D.motoristas = list || [];
+  closeModal('ovMotoristaQuick');
+  fillMotoristaSelect(data[0].id);
+}
+function calcProducaoPreview(){
+  const kgBruto = Number(document.getElementById('prKgBruto').value)||0;
+  const kgLiquido = Number(document.getElementById('prKgLiquido').value)||0;
+  const sacasBruto = kgBruto/60;
+  const sacasLiquido = kgLiquido/60;
+  document.getElementById('prSacasPreview').innerHTML =
+    `${kgBruto>0 ? 'Peso bruto ≈ <b>'+fmtSacas(sacasBruto)+'</b>' : ''}${kgBruto>0 && kgLiquido>0 ? ' · ' : ''}${kgLiquido>0 ? 'Peso líquido ≈ <b>'+fmtSacas(sacasLiquido)+'</b>' : ''}`;
+  document.getElementById('prQtd').value = kgLiquido>0 ? sacasLiquido.toFixed(2) : '';
+  calcDescontoPreview();
+}
+function onPctUmidadeChange(){
+  const kgBruto = Number(document.getElementById('prKgBruto').value)||0;
+  const pct = Number(document.getElementById('prPctUmidade').value)||0;
+  if (kgBruto>0 && pct>0){
+    document.getElementById('prKgUmidade').value = (kgBruto*pct/100).toFixed(2);
+  }
+  calcProducaoPreview();
+}
+function calcDescontoPreview(){
+  const kgUmidade = Number(document.getElementById('prKgUmidade').value)||0;
+  const kgImpureza = Number(document.getElementById('prKgImpureza').value)||0;
+  const kgArdido = Number(document.getElementById('prKgArdido').value)||0;
+  const totalKg = kgUmidade + kgImpureza + kgArdido;
+  const totalSacas = totalKg/60;
+  document.getElementById('prDescontoPreview').innerHTML = totalKg>0
+    ? `Desconto total: <b>${totalKg.toLocaleString('pt-BR',{maximumFractionDigits:2})} kg</b> ≈ <b>${fmtSacas(totalSacas)}</b> de desconto na carga`
+    : 'Preencha os campos de desconto para ver o total em sacas.';
+}
 function openProducaoModal(id){
   if (!id && needSafra()) return;
   document.getElementById('prId').value = id||'';
@@ -2040,28 +2256,47 @@ function openProducaoModal(id){
   fillFazendaSelectSafra('prFazenda', p.fazenda_id);
   const fazendaId = document.getElementById('prFazenda').value;
   fillTalhaoSelectFazenda(fazendaId, p.talhao_id);
+  document.getElementById('prKgBruto').value = p.kg_bruto || '';
+  document.getElementById('prKgLiquido').value = p.kg_liquido || '';
+  document.getElementById('prKgUmidade').value = p.kg_umidade || '';
+  document.getElementById('prKgImpureza').value = p.kg_impureza || '';
+  document.getElementById('prKgArdido').value = p.kg_ardido || '';
+  document.getElementById('prPctUmidade').value = p.pct_umidade || '';
   document.getElementById('prQtd').value = p.quantidade_liquida_sacas || '';
+  fillVeiculoSelect(p.veiculo_id);
+  fillMotoristaSelect(p.motorista_id);
   fillPessoaSelectProducao(p.pessoa_id);
   document.getElementById('prObservacoes').value = p.observacoes || '';
+  calcProducaoPreview();
   openModal('ovProducao');
 }
 async function saveProducao(){
   const id = document.getElementById('prId').value;
   const data = document.getElementById('prData').value;
   const fazenda_id = document.getElementById('prFazenda').value;
-  const talhao_id = document.getElementById('prTalhao').value;
+  const talhao_id = document.getElementById('prTalhao').value || null;
+  const kg_bruto = document.getElementById('prKgBruto').value ? Number(document.getElementById('prKgBruto').value) : null;
+  const kg_liquido = document.getElementById('prKgLiquido').value ? Number(document.getElementById('prKgLiquido').value) : null;
+  const kg_umidade = Number(document.getElementById('prKgUmidade').value)||0;
+  const kg_impureza = Number(document.getElementById('prKgImpureza').value)||0;
+  const kg_ardido = Number(document.getElementById('prKgArdido').value)||0;
+  const pct_umidade = document.getElementById('prPctUmidade').value ? Number(document.getElementById('prPctUmidade').value) : null;
   const qtd = Number(document.getElementById('prQtd').value)||0;
+  const veiculo_id = document.getElementById('prVeiculo').value || null;
+  const motorista_id = document.getElementById('prMotorista').value || null;
   const pessoa_id = document.getElementById('prPessoa').value || null;
   const observacoes = document.getElementById('prObservacoes').value.trim();
 
   if (!data){ alert('Informe a data.'); return; }
   if (!fazenda_id){ alert('Selecione a fazenda.'); return; }
-  if (!talhao_id){ alert('Selecione o talhão.'); return; }
-  if (qtd <= 0){ alert('A quantidade líquida deve ser maior que zero.'); return; }
+  if (!kg_liquido || kg_liquido<=0){ alert('Informe o peso líquido (kg).'); return; }
+  if (qtd <= 0){ alert('A quantidade líquida em sacas deve ser maior que zero.'); return; }
   if (!pessoa_id){ alert('Selecione para quem foi entregue.'); return; }
 
   const payload = {
     safra_id: D.safraAtual, fazenda_id, talhao_id, pessoa_id, data,
+    kg_bruto, kg_liquido, kg_umidade, kg_impureza, kg_ardido, pct_umidade,
+    veiculo_id, motorista_id,
     quantidade_liquida_sacas: qtd, observacoes, updated_at: new Date().toISOString()
   };
   let res;
@@ -2473,6 +2708,8 @@ function renderCadastrosShell(){
       <button class="subnavBtn ${D.cadastroSub==='safras'?'active':''}" onclick="goCadastroSub('safras')">Safras</button>
       <button class="subnavBtn ${D.cadastroSub==='talhoes'?'active':''}" onclick="goCadastroSub('talhoes')">Talhões</button>
       <button class="subnavBtn ${D.cadastroSub==='maquinarios'?'active':''}" onclick="goCadastroSub('maquinarios')">Maquinários</button>
+      <button class="subnavBtn ${D.cadastroSub==='veiculos'?'active':''}" onclick="goCadastroSub('veiculos')">Veículos</button>
+      <button class="subnavBtn ${D.cadastroSub==='motoristas'?'active':''}" onclick="goCadastroSub('motoristas')">Motoristas</button>
       <button class="subnavBtn ${D.cadastroSub==='pessoas'?'active':''}" onclick="goCadastroSub('pessoas')">Pessoas e empresas</button>
       <button class="subnavBtn ${D.cadastroSub==='contas'?'active':''}" onclick="goCadastroSub('contas')">Contas</button>
       <button class="subnavBtn ${D.cadastroSub==='categorias'?'active':''}" onclick="goCadastroSub('categorias')">Categorias</button>
@@ -2486,6 +2723,8 @@ async function renderCadastros(){
   if (D.cadastroSub==='safras') c.innerHTML = tplCadastroSafras();
   if (D.cadastroSub==='talhoes') c.innerHTML = tplCadastroTalhoes();
   if (D.cadastroSub==='maquinarios') c.innerHTML = tplCadastroMaquinarios();
+  if (D.cadastroSub==='veiculos') c.innerHTML = tplCadastroVeiculos();
+  if (D.cadastroSub==='motoristas') c.innerHTML = tplCadastroMotoristas();
   if (D.cadastroSub==='pessoas') c.innerHTML = tplCadastroPessoas();
   if (D.cadastroSub==='categorias') c.innerHTML = tplCadastroCategorias();
   if (D.cadastroSub==='contas') c.innerHTML = tplCadastroContas();
@@ -2762,6 +3001,115 @@ async function deleteMaquinarioCad(id){
   if (!confirm('Excluir definitivamente este maquinário? Isso só é possível se ele não estiver vinculado a nenhuma despesa.')) return;
   const ok = await tryDelete('faz_maquinarios', id);
   if (ok){ await loadBase(); goCadastroSub('maquinarios'); }
+}
+
+// ---------- Cadastro: Veículos ----------
+function tplCadastroVeiculos(){
+  return `
+    <div class="card">
+      <div class="cardHead"><h3>Veículos</h3><button class="btn small" onclick="openVeiculoModal()">+ Novo veículo</button></div>
+      ${D.veiculos.length ? `<table><thead><tr><th>Placa</th><th>Modelo</th><th>Status</th><th></th></tr></thead><tbody>
+        ${D.veiculos.map(v=>`<tr>
+          <td><b>${esc(v.placa)}</b></td>
+          <td>${esc(v.modelo||'—')}</td>
+          <td><span class="badge ${v.ativo?'entregue':'pendente'}">${v.ativo?'Ativo':'Inativo'}</span></td>
+          <td>
+            <button class="iconBtn" onclick="openVeiculoModal('${v.id}')">Editar</button>
+            <button class="iconBtn" onclick="toggleVeiculoAtivo('${v.id}', ${!!v.ativo})">${v.ativo?'Inativar':'Ativar'}</button>
+            <button class="iconBtn" onclick="deleteVeiculoCad('${v.id}')">Excluir</button>
+          </td>
+        </tr>`).join('')}</tbody></table>`
+        : `<div class="empty"><b>Nenhum veículo cadastrado</b>Cadastre os caminhões usados no transporte da produção.</div>`}
+    </div>`;
+}
+function openVeiculoModal(id){
+  document.getElementById('vId').value = id||'';
+  document.getElementById('vModalTitle').textContent = id ? 'Editar Veículo' : 'Novo Veículo';
+  const v = D.veiculos.find(x=>x.id===id) || {};
+  document.getElementById('vPlaca').value = v.placa||'';
+  document.getElementById('vModelo').value = v.modelo||'';
+  document.getElementById('vObservacoes').value = v.observacoes||'';
+  openModal('ovVeiculo');
+}
+async function saveVeiculo(){
+  const id = document.getElementById('vId').value;
+  const payload = {
+    placa: document.getElementById('vPlaca').value.trim(),
+    modelo: document.getElementById('vModelo').value.trim(),
+    observacoes: document.getElementById('vObservacoes').value.trim(),
+    updated_at: new Date().toISOString()
+  };
+  if (!payload.placa){ alert('Informe a placa.'); return; }
+  if (id) await sb.from('faz_veiculos').update(payload).eq('id', id);
+  else await sb.from('faz_veiculos').insert(payload);
+  closeModal('ovVeiculo');
+  await loadBase();
+  goCadastroSub('veiculos');
+}
+async function toggleVeiculoAtivo(id, current){
+  await sb.from('faz_veiculos').update({ ativo: !current, updated_at:new Date().toISOString() }).eq('id', id);
+  await loadBase(); goCadastroSub('veiculos');
+}
+async function deleteVeiculoCad(id){
+  if (!confirm('Excluir definitivamente este veículo? Isso só é possível se ele não estiver vinculado a nenhuma produção.')) return;
+  const ok = await tryDelete('faz_veiculos', id);
+  if (ok){ await loadBase(); goCadastroSub('veiculos'); }
+}
+
+// ---------- Cadastro: Motoristas ----------
+function tplCadastroMotoristas(){
+  return `
+    <div class="card">
+      <div class="cardHead"><h3>Motoristas</h3><button class="btn small" onclick="openMotoristaModal()">+ Novo motorista</button></div>
+      ${D.motoristas.length ? `<table><thead><tr><th>Nome</th><th>CPF</th><th>Telefone</th><th>Status</th><th></th></tr></thead><tbody>
+        ${D.motoristas.map(m=>`<tr>
+          <td><b>${esc(m.nome)}</b></td>
+          <td>${esc(m.documento||'—')}</td>
+          <td>${esc(m.telefone||'—')}</td>
+          <td><span class="badge ${m.ativo?'entregue':'pendente'}">${m.ativo?'Ativo':'Inativo'}</span></td>
+          <td>
+            <button class="iconBtn" onclick="openMotoristaModal('${m.id}')">Editar</button>
+            <button class="iconBtn" onclick="toggleMotoristaAtivo('${m.id}', ${!!m.ativo})">${m.ativo?'Inativar':'Ativar'}</button>
+            <button class="iconBtn" onclick="deleteMotoristaCad('${m.id}')">Excluir</button>
+          </td>
+        </tr>`).join('')}</tbody></table>`
+        : `<div class="empty"><b>Nenhum motorista cadastrado</b>Cadastre os motoristas que fazem o transporte da produção.</div>`}
+    </div>`;
+}
+function openMotoristaModal(id){
+  document.getElementById('mtId').value = id||'';
+  document.getElementById('mtModalTitle').textContent = id ? 'Editar Motorista' : 'Novo Motorista';
+  const m = D.motoristas.find(x=>x.id===id) || {};
+  document.getElementById('mtNome').value = m.nome||'';
+  document.getElementById('mtDocumento').value = m.documento||'';
+  document.getElementById('mtTelefone').value = m.telefone||'';
+  document.getElementById('mtObservacoes').value = m.observacoes||'';
+  openModal('ovMotorista');
+}
+async function saveMotorista(){
+  const id = document.getElementById('mtId').value;
+  const payload = {
+    nome: document.getElementById('mtNome').value.trim(),
+    documento: document.getElementById('mtDocumento').value.trim(),
+    telefone: document.getElementById('mtTelefone').value.trim(),
+    observacoes: document.getElementById('mtObservacoes').value.trim(),
+    updated_at: new Date().toISOString()
+  };
+  if (!payload.nome){ alert('Informe o nome do motorista.'); return; }
+  if (id) await sb.from('faz_motoristas').update(payload).eq('id', id);
+  else await sb.from('faz_motoristas').insert(payload);
+  closeModal('ovMotorista');
+  await loadBase();
+  goCadastroSub('motoristas');
+}
+async function toggleMotoristaAtivo(id, current){
+  await sb.from('faz_motoristas').update({ ativo: !current, updated_at:new Date().toISOString() }).eq('id', id);
+  await loadBase(); goCadastroSub('motoristas');
+}
+async function deleteMotoristaCad(id){
+  if (!confirm('Excluir definitivamente este motorista? Isso só é possível se ele não estiver vinculado a nenhuma produção.')) return;
+  const ok = await tryDelete('faz_motoristas', id);
+  if (ok){ await loadBase(); goCadastroSub('motoristas'); }
 }
 
 // ---------- Cadastro: Pessoas ----------
