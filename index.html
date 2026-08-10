@@ -509,6 +509,15 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div></div>
 
+<div class="overlay" id="ovProducaoDetalhe"><div class="modal">
+  <h3>Detalhes da carga</h3>
+  <div id="pdDetalheConteudo"></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovProducaoDetalhe')">Fechar</button>
+    <button class="btn" id="pdDetalheEditarBtn">Editar</button>
+  </div>
+</div></div>
+
 <div class="overlay" id="ovProducao"><div class="modal">
   <h3 id="prModalTitle">Nova Produção</h3>
   <input type="hidden" id="prId">
@@ -2117,12 +2126,45 @@ function setProducaoFilterValues(){
   document.getElementById('pfDataFim').value = PF.dataFim;
   document.getElementById('pfOrdenar').value = PF.ordenar;
 }
+function openProducaoDetalhe(id){
+  const p = D.producao.find(x=>x.id===id);
+  if (!p) return;
+  const fazNome = D.fazendas.find(f=>f.id===p.fazenda_id)?.nome || '—';
+  const talNome = D.talhoes.find(t=>t.id===p.talhao_id)?.nome || '—';
+  const pesNome = D.pessoas.find(x=>x.id===p.pessoa_id)?.nome || '—';
+  const transp = D.transportes.find(t=>t.id===p.transporte_id);
+  const saldo = saldoCarga(p.id);
+  const totalDescontoKg = Number(p.kg_umidade||0)+Number(p.kg_impureza||0)+Number(p.kg_ardido||0);
+
+  const linha = (label, val) => `<tr><td style="color:var(--muted); font-size:12.5px; padding:8px 10px 8px 0; white-space:nowrap;">${esc(label)}</td><td style="padding:8px 0; font-weight:600;">${val}</td></tr>`;
+
+  document.getElementById('pdDetalheConteudo').innerHTML = `
+    <table style="width:100%;">
+      ${linha('Data', fmtDate(p.data))}
+      ${linha('Fazenda', esc(fazNome))}
+      ${linha('Talhão', esc(talNome))}
+      ${linha('Peso bruto', p.kg_bruto!=null ? Number(p.kg_bruto).toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg' : '—')}
+      ${linha('Kg umidade', Number(p.kg_umidade||0).toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg')}
+      ${linha('Kg impureza', Number(p.kg_impureza||0).toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg')}
+      ${linha('Kg ardido', Number(p.kg_ardido||0).toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg')}
+      ${linha('% umidade (informativo)', p.pct_umidade!=null ? Number(p.pct_umidade).toLocaleString('pt-BR',{maximumFractionDigits:2})+'%' : '—')}
+      ${linha('Desconto total', totalDescontoKg.toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg ('+fmtSacas(totalDescontoKg/60)+')')}
+      ${linha('Peso líquido', p.kg_liquido!=null ? Number(p.kg_liquido).toLocaleString('pt-BR',{maximumFractionDigits:2})+' kg' : '—')}
+      ${linha('Quantidade líquida', fmtSacas(p.quantidade_liquida_sacas))}
+      ${linha('Saldo em estoque', saldo<=0.001 ? 'Esgotada' : fmtSacas(saldo))}
+      ${linha('Caminhão / motorista', transp ? esc(transp.placa)+' — '+esc(transp.motorista_nome) : '—')}
+      ${linha('Entregue para', esc(pesNome))}
+      ${linha('Observações', esc(p.observacoes||'—'))}
+    </table>`;
+  document.getElementById('pdDetalheEditarBtn').onclick = () => { closeModal('ovProducaoDetalhe'); openProducaoModal(id); };
+  openModal('ovProducaoDetalhe');
+}
 function renderProducaoRow(p){
   const fazNome = D.fazendas.find(f=>f.id===p.fazenda_id)?.nome || '—';
   const talNome = D.talhoes.find(t=>t.id===p.talhao_id)?.nome || '—';
   const pesNome = D.pessoas.find(x=>x.id===p.pessoa_id)?.nome || '—';
   const saldo = saldoCarga(p.id);
-  return `<tr>
+  return `<tr style="cursor:pointer;" onclick="openProducaoDetalhe('${p.id}')">
     <td>${fmtDate(p.data)}</td>
     <td>${esc(fazNome)}</td>
     <td>${esc(talNome)}</td>
@@ -2130,7 +2172,7 @@ function renderProducaoRow(p){
     <td>${saldo<=0.001 ? '<span class="badge liquidado">Esgotada</span>' : fmtSacas(saldo)}</td>
     <td>${esc(pesNome)}</td>
     <td>${esc(p.observacoes||'—')}</td>
-    <td><button class="iconBtn" onclick="openProducaoModal('${p.id}')">Editar</button><button class="iconBtn" onclick="deleteProducao('${p.id}')">Excluir</button></td>
+    <td onclick="event.stopPropagation()"><button class="iconBtn" onclick="openProducaoModal('${p.id}')">Editar</button><button class="iconBtn" onclick="deleteProducao('${p.id}')">Excluir</button></td>
   </tr>`;
 }
 function fillTalhaoSelectFazenda(fazendaId, selected){
