@@ -537,7 +537,7 @@ tr:last-child td{border-bottom:none;}
       <div class="field"><label>Kg impureza</label><input id="prKgImpureza" type="number" step="0.01" oninput="calcProducaoPreview()"></div>
       <div class="field"><label>Kg ardido</label><input id="prKgArdido" type="number" step="0.01" oninput="calcProducaoPreview()"></div>
     </div>
-    <div class="field"><label>% umidade</label><input id="prPctUmidade" type="number" step="0.01" oninput="onPctUmidadeChange()"></div>
+    <div class="field"><label>% umidade</label><input id="prPctUmidade" type="number" step="0.01" oninput="calcProducaoPreview()"></div>
     <div class="saldoBox" id="prDescontoPreview"></div>
   </div>
 
@@ -2228,14 +2228,6 @@ function calcProducaoPreview(){
     `${kgBruto>0 ? 'Peso bruto ≈ <b>'+fmtSacas(sacasBruto)+'</b>' : ''}${kgBruto>0 && kgLiquido>0 ? ' · ' : ''}${kgLiquido>0 ? 'Peso líquido ≈ <b>'+fmtSacas(sacasLiquido)+'</b>' : ''}`;
   document.getElementById('prQtd').value = kgLiquido>0 ? sacasLiquido.toFixed(2) : '';
   calcDescontoPreview();
-}
-function onPctUmidadeChange(){
-  const kgBruto = Number(document.getElementById('prKgBruto').value)||0;
-  const pct = Number(document.getElementById('prPctUmidade').value)||0;
-  if (kgBruto>0 && pct>0){
-    document.getElementById('prKgUmidade').value = (kgBruto*pct/100).toFixed(2);
-  }
-  calcProducaoPreview();
 }
 function calcDescontoPreview(){
   const kgUmidade = Number(document.getElementById('prKgUmidade').value)||0;
