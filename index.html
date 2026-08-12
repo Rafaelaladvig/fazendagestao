@@ -1150,6 +1150,8 @@ function renderDashboard(){
   const totalContratos = D.contratos.reduce((a,b)=>a+Number(b.valor_total||0),0);
   const producaoF = filterByFazendaGlobal(D.producao);
   const totalProducao = producaoF.reduce((a,b)=>a+Number(b.quantidade_liquida_sacas||0),0);
+  const totalKgBruto = producaoF.reduce((a,b)=>a+Number(b.kg_bruto||0),0);
+  const totalSacasBruta = totalKgBruto/60;
 
   if (!D.safraAtual){
     el.innerHTML = `<div class="pageTitle">Dashboard</div><div class="pageDesc">Selecione uma safra para ver os números</div>${noSafraMsg()}`;
@@ -1164,6 +1166,8 @@ function renderDashboard(){
   const custoPorSacaProduzida = totalProducao>0 ? m.custoHoje/totalProducao : null;
   const margemPorSaca = (custoPorSacaProduzida!=null && m.precoMedio>0) ? m.precoMedio - custoPorSacaProduzida : null;
   const rentabilidadePct = m.custoHoje>0 ? ((m.totalReceitaValor - m.custoHoje)/m.custoHoje*100) : null;
+  const sacasBrutaPorHa = totalHa>0 ? totalSacasBruta/totalHa : null;
+  const sacasLiquidaPorHa = totalHa>0 ? totalProducao/totalHa : null;
   const totalContratadoQtd = D.contratos.reduce((a,b)=>a+Number(b.quantidade||0),0);
 
   const contasAtivas = D.saldosContasCache.filter(r=>r.c.ativo);
@@ -1212,6 +1216,8 @@ function renderDashboard(){
           <div class="kpi"><div class="lbl">Custo por saca produzida</div><div class="val">${custoPorSacaProduzida!=null?fmtBRL(custoPorSacaProduzida)+'/sc':'—'}</div></div>
           <div class="kpi"><div class="lbl">Margem por saca</div><div class="val ${margemPorSaca!=null && margemPorSaca<0?'red':''}">${margemPorSaca!=null?fmtBRL(margemPorSaca)+'/sc':'—'}</div></div>
           <div class="kpi"><div class="lbl">Rentabilidade da safra</div><div class="val ${rentabilidadePct!=null && rentabilidadePct<0?'red':''}">${fmtPct(rentabilidadePct)}</div></div>
+          <div class="kpi"><div class="lbl">Sacas brutas produzidas/ha</div><div class="val">${sacasBrutaPorHa!=null?fmtSacas(sacasBrutaPorHa)+'/ha':'—'}</div></div>
+          <div class="kpi"><div class="lbl">Sacas líquidas produzidas/ha</div><div class="val">${sacasLiquidaPorHa!=null?fmtSacas(sacasLiquidaPorHa)+'/ha':'—'}</div></div>
         </div>
         ${totalHa<=0 ? `<div class="pageDesc" style="margin-top:8px;">Cadastre a área (HA) da fazenda para calcular os indicadores por hectare.</div>` : ''}
       </div>
