@@ -419,16 +419,40 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div></div>
 
+<div class="overlay" id="ovEntregaFisica"><div class="modal" style="width:420px">
+  <h3>Registrar entrega física</h3>
+  <input type="hidden" id="efLancamentoId">
+  <div class="saldoBox" id="efResumo"></div>
+  <div class="field"><label>Quantidade entregue agora (sacas)</label><input id="efQtd" type="number" step="0.01"></div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovEntregaFisica')">Cancelar</button>
+    <button class="btn" onclick="confirmEntregaFisica()">Registrar</button>
+  </div>
+</div></div>
+
 <div class="overlay" id="ovBaixa"><div class="modal">
   <h3>Dar baixa na despesa</h3>
   <input type="hidden" id="bxId">
   <div class="totalLine" style="margin-top:0;"><span>Valor original da nota</span><span id="bxValorOriginal">R$ 0,00</span></div>
-  <div class="grid2">
-    <div class="field"><label>Desconto obtido (opcional)</label><input id="bxDesconto" type="number" step="0.01" value="0" oninput="calcBaixaDespesaTotal()"></div>
-    <div class="field"><label>Juros/multa pagos (opcional)</label><input id="bxJurosMulta" type="number" step="0.01" value="0" oninput="calcBaixaDespesaTotal()"></div>
+  <div class="field"><label>Forma de pagamento</label>
+    <select id="bxForma" onchange="onBxFormaChange()">
+      <option value="dinheiro">Dinheiro</option>
+      <option value="grao">Em grão (permuta)</option>
+    </select>
   </div>
-  <div class="totalLine"><span>Valor efetivamente pago</span><span id="bxValorPago">R$ 0,00</span></div>
-  <div class="field"><label>Pagar com qual conta?</label><select id="bxConta"></select></div>
+  <div id="bxDinheiroWrap">
+    <div class="grid2">
+      <div class="field"><label>Desconto obtido (opcional)</label><input id="bxDesconto" type="number" step="0.01" value="0" oninput="calcBaixaDespesaTotal()"></div>
+      <div class="field"><label>Juros/multa pagos (opcional)</label><input id="bxJurosMulta" type="number" step="0.01" value="0" oninput="calcBaixaDespesaTotal()"></div>
+    </div>
+    <div class="totalLine"><span>Valor efetivamente pago</span><span id="bxValorPago">R$ 0,00</span></div>
+    <div class="field"><label>Pagar com qual conta?</label><select id="bxConta"></select></div>
+  </div>
+  <div id="bxGraoWrap" style="display:none">
+    <div class="field"><label>Produto usado no pagamento</label><select id="bxGraoCategoria"></select></div>
+    <div class="field"><label>Quantidade de sacas entregues</label><input id="bxGraoQtd" type="number" step="0.01"></div>
+    <div class="pageDesc">Não afeta o saldo de nenhuma conta bancária — desconta direto do estoque de produção.</div>
+  </div>
   <div class="field"><label>Data do pagamento</label><input id="bxData" type="date"></div>
   <div class="modalActions">
     <button class="btn secondary" onclick="closeModal('ovBaixa')">Cancelar</button>
@@ -1432,12 +1456,17 @@ function renderLancRow(x){
   let statusCell = '—';
   let actions = '';
   if (x.tipo==='despesa'){
-    statusCell = `<span class="badge ${x.status}">${x.status==='pago'?'Pago':'Pendente'}</span>`;
+    statusCell = x.status==='pago'
+      ? (x.forma_liquidacao==='grao' ? '<span class="badge fixa">Pago (grão)</span>' : '<span class="badge pago">Pago</span>')
+      : '<span class="badge pendente">Pendente</span>';
     actions = (x.status==='pendente' ? `<button class="iconBtn" onclick="openBaixaModal('${x.id}')">Dar baixa</button>` : '') +
       `<button class="iconBtn" onclick="openDespesaModal('${x.id}')">Editar</button><button class="iconBtn" onclick="deleteLancamento('${x.id}')">Excluir</button>`;
   } else {
     statusCell = `<span class="badge ${x.status}">${x.status==='pago'?'Recebido':'Pendente'}</span>`;
+    const entregaBtn = categoriaEhMilhoOuSoja(cat)
+      ? `<button class="iconBtn" onclick="openEntregaFisicaModal('${x.id}')">Registrar entrega</button>` : '';
     actions = (x.status==='pendente' ? `<button class="iconBtn" onclick="openBaixaReceitaModal('${x.id}')">Confirmar recebimento</button>` : '') +
+      entregaBtn +
       `<button class="iconBtn" onclick="openReceitaModal('${x.id}')">Editar</button><button class="iconBtn" onclick="deleteLancamento('${x.id}')">Excluir</button>`;
   }
   return `<tr>
@@ -1715,12 +1744,24 @@ function openBaixaModal(id){
   const d = D.lancamentos.find(x=>x.id===id) || {};
   document.getElementById('bxId').value = id;
   document.getElementById('bxValorOriginal').textContent = fmtBRL(d.valor_total);
+  document.getElementById('bxForma').value = 'dinheiro';
   document.getElementById('bxDesconto').value = 0;
   document.getElementById('bxJurosMulta').value = 0;
   calcBaixaDespesaTotal();
   fillContaSelectInto('bxConta', d.conta_id, true);
+  const opcoesGrao = D.categorias.filter(c=>categoriaEhMilhoOuSoja(c));
+  document.getElementById('bxGraoCategoria').innerHTML = opcoesGrao.length
+    ? opcoesGrao.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('')
+    : '<option value="">Nenhuma categoria de grão cadastrada</option>';
+  document.getElementById('bxGraoQtd').value = '';
+  onBxFormaChange();
   document.getElementById('bxData').value = new Date().toISOString().slice(0,10);
   openModal('ovBaixa');
+}
+function onBxFormaChange(){
+  const grao = document.getElementById('bxForma').value === 'grao';
+  document.getElementById('bxDinheiroWrap').style.display = grao ? 'none' : 'block';
+  document.getElementById('bxGraoWrap').style.display = grao ? 'block' : 'none';
 }
 function calcBaixaDespesaTotal(){
   const id = document.getElementById('bxId').value;
@@ -1734,18 +1775,64 @@ function calcBaixaDespesaTotal(){
 }
 async function confirmBaixa(){
   const id = document.getElementById('bxId').value;
-  const conta = document.getElementById('bxConta').value;
+  const d = D.lancamentos.find(x=>x.id===id) || {};
   const data = document.getElementById('bxData').value;
-  const valor_desconto = Number(document.getElementById('bxDesconto').value)||0;
-  const valor_juros_multa = Number(document.getElementById('bxJurosMulta').value)||0;
-  const valor_pago = calcBaixaDespesaTotal();
-  if (!conta){ alert('Cadastre e selecione uma conta de pagamento.'); return; }
-  await sb.from('faz_lancamentos').update({
-    status:'pago', conta_id: conta, data_pagamento: data,
-    valor_desconto, valor_juros_multa, valor_pago,
-    updated_at:new Date().toISOString()
-  }).eq('id', id);
+  const forma = document.getElementById('bxForma').value;
+
+  if (forma==='grao'){
+    const categoriaId = document.getElementById('bxGraoCategoria').value;
+    const sacas = Number(document.getElementById('bxGraoQtd').value)||0;
+    const cat = D.categorias.find(c=>c.id===categoriaId);
+    if (!cat){ alert('Selecione o produto usado no pagamento.'); return; }
+    if (sacas<=0){ alert('Informe a quantidade de sacas entregues.'); return; }
+    await sb.from('faz_lancamentos').update({
+      status:'pago', conta_id: null, data_pagamento: data,
+      valor_desconto: 0, valor_juros_multa: 0, valor_pago: d.valor_total,
+      forma_liquidacao: 'grao', sacas_liquidacao: sacas,
+      updated_at:new Date().toISOString()
+    }).eq('id', id);
+    await alocarConsumoFifo(id, cat.nome, d.safra_id, sacas);
+  } else {
+    const conta = document.getElementById('bxConta').value;
+    const valor_desconto = Number(document.getElementById('bxDesconto').value)||0;
+    const valor_juros_multa = Number(document.getElementById('bxJurosMulta').value)||0;
+    const valor_pago = calcBaixaDespesaTotal();
+    if (!conta){ alert('Cadastre e selecione uma conta de pagamento.'); return; }
+    await sb.from('faz_lancamentos').update({
+      status:'pago', conta_id: conta, data_pagamento: data,
+      valor_desconto, valor_juros_multa, valor_pago,
+      forma_liquidacao: 'dinheiro', sacas_liquidacao: null,
+      updated_at:new Date().toISOString()
+    }).eq('id', id);
+  }
   closeModal('ovBaixa');
+  await reloadSafraScopedData();
+  goTab('lancamentos');
+}
+function entregueSacas(lancamentoId){
+  return D.producaoConsumo.filter(c=>c.lancamento_id===lancamentoId).reduce((a,c)=>a+Number(c.quantidade_sacas||0),0);
+}
+function openEntregaFisicaModal(id){
+  const x = D.lancamentos.find(l=>l.id===id);
+  if (!x) return;
+  const cat = D.categorias.find(c=>c.id===x.categoria_id);
+  const entregue = entregueSacas(id);
+  const pendente = Math.max(0, Number(x.quantidade||0) - entregue);
+  document.getElementById('efLancamentoId').value = id;
+  document.getElementById('efResumo').innerHTML = `Produto: <b>${esc(cat?cat.nome:'—')}</b> · Vendido: <b>${fmtSacas(x.quantidade)}</b> · Já entregue: <b>${fmtSacas(entregue)}</b> · Pendente: <b>${fmtSacas(pendente)}</b>`;
+  document.getElementById('efQtd').value = pendente>0 ? pendente.toFixed(2) : '';
+  openModal('ovEntregaFisica');
+}
+async function confirmEntregaFisica(){
+  const id = document.getElementById('efLancamentoId').value;
+  const x = D.lancamentos.find(l=>l.id===id);
+  if (!x) return;
+  const cat = D.categorias.find(c=>c.id===x.categoria_id);
+  const qtd = Number(document.getElementById('efQtd').value)||0;
+  if (qtd<=0){ alert('Informe a quantidade entregue.'); return; }
+  if (!cat){ alert('Este lançamento não tem uma categoria de produto (Milho/Soja) válida para dar baixa no estoque.'); return; }
+  await alocarConsumoFifo(id, cat.nome, x.safra_id, qtd);
+  closeModal('ovEntregaFisica');
   await reloadSafraScopedData();
   goTab('lancamentos');
 }
@@ -1931,11 +2018,8 @@ async function saveReceita(){
     const autoBaixado = deveAutoBaixar(data_vencimento);
     const insertPayload = { ...payload, status: autoBaixado ? 'pago' : 'pendente' };
     if (autoBaixado){ insertPayload.data_pagamento = data; insertPayload.valor_pago = valor_total; }
-    const { data: inserted, error } = await sb.from('faz_lancamentos').insert(insertPayload).select();
+    const { error } = await sb.from('faz_lancamentos').insert(insertPayload);
     if (error){ alert('Erro ao salvar receita: '+error.message); return; }
-    if (origem_produto==='estoque' && cat){
-      await alocarConsumoFifo(inserted[0].id, cat.nome, D.safraAtual, qtd);
-    }
   }
   closeModal('ovReceita');
   await reloadSafraScopedData();
