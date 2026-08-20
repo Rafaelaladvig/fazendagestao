@@ -1238,7 +1238,9 @@ function renderDashboard(){
   const rentabilidadePct = m.custoHoje>0 ? ((m.totalReceitaValor - m.custoHoje)/m.custoHoje*100) : null;
   const sacasBrutaPorHa = totalHa>0 ? totalSacasBruta/totalHa : null;
   const sacasLiquidaPorHa = totalHa>0 ? totalProducao/totalHa : null;
-  const totalContratadoQtd = D.contratos.reduce((a,b)=>a+Number(b.quantidade||0),0);
+  // Só contratos ainda "aberto" reservam estoque — entregue/liquidado já foi
+  // descontado de verdade via consumo FIFO, contar os dois seria dobrar o desconto.
+  const totalContratadoQtd = D.contratos.filter(c=>c.status==='aberto').reduce((a,b)=>a+Number(b.quantidade||0),0);
 
   const contasAtivas = D.saldosContasCache.filter(r=>r.c.ativo);
   const saldoProprioTotal = contasAtivas.reduce((a,r)=>a+r.saldoProprio,0);
@@ -2257,7 +2259,9 @@ function renderProducao(){
   const filtered = applyProducaoFilters(base);
   const totalSacas = filtered.reduce((a,b)=>a+Number(b.quantidade_liquida_sacas||0),0);
   const totalConsumido = filtered.reduce((a,b)=>a+(Number(b.quantidade_liquida_sacas||0)-saldoCarga(b.id)),0);
-  const totalContratadoQtd = D.contratos.reduce((a,b)=>a+Number(b.quantidade||0),0);
+  // Só contratos ainda "aberto" reservam estoque — entregue/liquidado já foi
+  // descontado de verdade via consumo FIFO, contar os dois seria dobrar o desconto.
+  const totalContratadoQtd = D.contratos.filter(c=>c.status==='aberto').reduce((a,b)=>a+Number(b.quantidade||0),0);
   const totalEstoque = totalSacas - totalConsumido - totalContratadoQtd;
   const porFazenda = groupSum(filtered, 'fazenda_id', p=>p.quantidade_liquida_sacas);
   const porTalhao = groupSum(filtered, 'talhao_id', p=>p.quantidade_liquida_sacas);
@@ -2288,7 +2292,7 @@ function renderProducao(){
       <div class="kpi"><div class="lbl">Lançamentos</div><div class="val">${filtered.length}</div></div>
       <div class="kpi"><div class="lbl">Fazendas com produção</div><div class="val">${Object.keys(porFazenda).length}</div></div>
     </div>
-    <div class="pageDesc" style="margin:-10px 0 18px;">Estoque disponível = produzido − vendido do estoque − contratado (${fmtSacas(totalContratadoQtd)}).</div>
+    <div class="pageDesc" style="margin:-10px 0 18px;">Estoque disponível = produzido − vendido do estoque − contratado ainda em aberto (${fmtSacas(totalContratadoQtd)}). Contratos já entregues não entram aqui — o desconto deles já foi feito no estoque.</div>
     <div class="kpis">
       <div class="kpi"><div class="lbl">% média de umidade</div><div class="val">${mediaUmidade!=null?mediaUmidade.toFixed(2)+'%':'—'}</div></div>
       <div class="kpi"><div class="lbl">Sacas descontadas (qualidade)</div><div class="val orange">${fmtSacas(totalSacasDesconto)}</div></div>
