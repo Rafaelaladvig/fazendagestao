@@ -773,7 +773,7 @@ tr:last-child td{border-bottom:none;}
 // ================= SUPABASE =================
 const SB_URL = "https://ceqvwrzyqjpxvekapqto.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNlcXZ3cnp5cWpweHZla2FwcXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyNDU1MDUsImV4cCI6MjA5NzgyMTUwNX0.IJZlL7UT07KHHDRMpkkMShWIVQfQgcbZjSxWtpF3VvU";
-const sb = supabase.createClient(SB_URL, SB_KEY);
+const sb = supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
 
 // ================= STATE =================
 let D = {
@@ -2116,6 +2116,24 @@ function tplGroupTable(groupObj, nameFn, total){
     }).join('')}
   </tbody></table>`;
 }
+function groupSumDuplo(list, key, val1Fn, val2Fn){
+  const out = {};
+  list.forEach(item=>{
+    const k = item[key];
+    if (!k) return;
+    if (!out[k]) out[k] = { v1:0, v2:0 };
+    out[k].v1 += Number(val1Fn(item)||0);
+    out[k].v2 += Number(val2Fn(item)||0);
+  });
+  return out;
+}
+function tplGroupTableDuplo(groupObj, nameFn){
+  const entries = Object.entries(groupObj).sort((a,b)=>b[1].v2-a[1].v2);
+  if (!entries.length) return `<div class="empty">Sem dados.</div>`;
+  return `<table><thead><tr><th>Caminhão / motorista</th><th>Sacas brutas</th><th>Sacas líquidas</th></tr></thead><tbody>
+    ${entries.map(([id,v])=>`<tr><td>${esc(nameFn(id)||'—')}</td><td>${fmtSacas(v.v1)}</td><td>${fmtSacas(v.v2)}</td></tr>`).join('')}
+  </tbody></table>`;
+}
 function saldoCarga(producaoId){
   const p = D.producao.find(x=>x.id===producaoId);
   if (!p) return 0;
@@ -2134,7 +2152,7 @@ function renderProducao(){
   const porFazenda = groupSum(filtered, 'fazenda_id', p=>p.quantidade_liquida_sacas);
   const porTalhao = groupSum(filtered, 'talhao_id', p=>p.quantidade_liquida_sacas);
   const porPessoa = groupSum(filtered, 'pessoa_id', p=>p.quantidade_liquida_sacas);
-  const porCaminhao = groupSum(filtered, 'transporte_id', p=>p.quantidade_liquida_sacas);
+  const porCaminhao = groupSumDuplo(filtered, 'transporte_id', p=>Number(p.kg_bruto||0)/60, p=>p.quantidade_liquida_sacas);
   const fazendasDaSafra = getFazendasDaSafra(D.safraAtual);
   const talhoesDaSafra = D.talhoes.filter(t=>fazendasDaSafra.some(f=>f.id===t.fazenda_id));
 
@@ -2173,7 +2191,7 @@ function renderProducao(){
     </div>
     <div class="card">
       <div class="cardHead"><h3>Por caminhão</h3></div>
-      ${tplGroupTable(porCaminhao, id=>{ const t=D.transportes.find(x=>x.id===id); return t ? t.placa+' — '+t.motorista_nome : null; }, totalSacas)}
+      ${tplGroupTableDuplo(porCaminhao, id=>{ const t=D.transportes.find(x=>x.id===id); return t ? t.placa+' — '+t.motorista_nome : null; })}
     </div>
     <div class="card">
       <div class="cardHead"><h3>Filtros</h3><button class="btn small" onclick="openProducaoModal()">+ Produção</button></div>
