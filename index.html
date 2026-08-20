@@ -744,6 +744,30 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div></div>
 
+<div class="overlay" id="ovContratoEntrega"><div class="modal">
+  <h3>Registrar entrega do contrato</h3>
+  <input type="hidden" id="ceContratoId">
+  <div class="saldoBox" id="ceResumo"></div>
+  <div class="grid2">
+    <div class="field"><label>Data</label><input id="ceData" type="date"></div>
+    <div class="field"><label>Fazenda</label><select id="ceFazenda"></select></div>
+  </div>
+  <div class="grid2">
+    <div class="field"><label>Quantidade entregue (sacas)</label><input id="ceQtd" type="number" step="0.01" oninput="calcContratoEntregaTotal()"></div>
+    <div class="field"><label>Valor unitário (R$)</label><input id="ceValorUn" type="number" step="0.01" oninput="calcContratoEntregaTotal()"></div>
+  </div>
+  <div class="totalLine"><span>Valor total</span><span id="ceTotalDisplay">R$ 0,00</span></div>
+  <div class="grid2">
+    <div class="field"><label>Conta prevista para recebimento</label><select id="ceConta"></select></div>
+    <div class="field"><label>Data prevista de recebimento</label><input id="ceDataRecebimento" type="date"></div>
+  </div>
+  <div class="pageDesc">O grão sai do estoque agora. O valor só entra no seu caixa quando você confirmar o recebimento em Lançamentos, na data acima.</div>
+  <div class="modalActions">
+    <button class="btn secondary" onclick="closeModal('ovContratoEntrega')">Cancelar</button>
+    <button class="btn" onclick="confirmContratoEntrega()">Registrar entrega</button>
+  </div>
+</div></div>
+
 <div class="overlay" id="ovContrato"><div class="modal">
   <h3 id="ctModalTitle">Novo Contrato</h3>
   <input type="hidden" id="ctId">
@@ -1894,6 +1918,7 @@ function calcBaixaReceitaTotal(){
 }
 async function confirmBaixaReceita(){
   const id = document.getElementById('rxId').value;
+  const r = D.lancamentos.find(x=>x.id===id);
   const conta = document.getElementById('rxConta').value;
   const data = document.getElementById('rxData').value;
   const valor_desconto = Number(document.getElementById('rxDesconto').value)||0;
@@ -1905,6 +1930,9 @@ async function confirmBaixaReceita(){
     valor_desconto, valor_juros_multa, valor_pago,
     updated_at:new Date().toISOString()
   }).eq('id', id);
+  if (r && r.contrato_id){
+    await sb.from('faz_contratos').update({ status:'liquidado' }).eq('id', r.contrato_id);
+  }
   closeModal('ovBaixaReceita');
   await reloadSafraScopedData();
   goTab('lancamentos');
@@ -2775,7 +2803,10 @@ function renderContratos(){
     <div class="card">
       <div class="cardHead"><h3>Contratos</h3><button class="btn small" onclick="openContratoModal()">+ Novo contrato</button></div>
       ${D.contratos.length ? `<table><thead><tr><th>Nº</th><th>Produto</th><th>Qtd (sc)</th><th>Valor un.</th><th>Total</th><th>Recebimento</th><th>Entrega</th><th>Status</th><th></th></tr></thead><tbody>
-        ${D.contratos.map(c=>`<tr>
+        ${D.contratos.map(c=>{
+          const saldo = contratoSaldo(c.id, null);
+          const podeEntregar = saldo.qtd > 0.001;
+          return `<tr>
           <td>${esc(c.numero_contrato||'—')}</td>
           <td><b>${esc(c.produto)}</b></td>
           <td>${c.quantidade}</td>
@@ -2784,8 +2815,12 @@ function renderContratos(){
           <td>${fmtDate(c.data_recebimento)}</td>
           <td>${fmtDate(c.data_entrega)}</td>
           <td><span class="badge ${c.status}">${c.status}</span></td>
-          <td><button class="iconBtn" onclick="openContratoModal('${c.id}')">Editar</button><button class="iconBtn" onclick="deleteContrato('${c.id}')">Excluir</button></td>
-        </tr>`).join('')}</tbody></table>`
+          <td>
+            ${podeEntregar && categoriaEhMilhoOuSoja({nome:c.produto}) ? `<button class="iconBtn" onclick="openContratoEntregaModal('${c.id}')">Registrar entrega</button>` : ''}
+            <button class="iconBtn" onclick="openContratoModal('${c.id}')">Editar</button><button class="iconBtn" onclick="deleteContrato('${c.id}')">Excluir</button>
+          </td>
+        </tr>`;
+        }).join('')}</tbody></table>`
         : `<div class="empty"><b>Nenhum contrato cadastrado</b>Registre o primeiro contrato desta safra.</div>`}
     </div>`;
 }
@@ -2834,6 +2869,67 @@ async function saveContrato(){
 async function deleteContrato(id){
   if (!confirm('Excluir este contrato? Receitas que apontam para ele ficarão sem contrato vinculado.')) return;
   await sb.from('faz_contratos').delete().eq('id', id);
+  await reloadSafraScopedData();
+  goTab('contratos');
+}
+function openContratoEntregaModal(id){
+  const c = D.contratos.find(x=>x.id===id);
+  if (!c) return;
+  const saldo = contratoSaldo(id, null);
+  document.getElementById('ceContratoId').value = id;
+  document.getElementById('ceResumo').innerHTML = `Contrato <b>${esc(c.numero_contrato||'—')}</b> · Produto: <b>${esc(c.produto)}</b> · Saldo disponível: <b>${fmtSacas(saldo.qtd)}</b> (${fmtBRL(saldo.valor)})`;
+  document.getElementById('ceData').value = new Date().toISOString().slice(0,10);
+  fillFazendaSelectSafra('ceFazenda', null);
+  document.getElementById('ceQtd').value = saldo.qtd>0 ? saldo.qtd : '';
+  document.getElementById('ceValorUn').value = c.valor_unitario || '';
+  fillContaSelectInto('ceConta', null, true);
+  document.getElementById('ceDataRecebimento').value = c.data_recebimento || '';
+  calcContratoEntregaTotal();
+  openModal('ovContratoEntrega');
+}
+function calcContratoEntregaTotal(){
+  const q = Number(document.getElementById('ceQtd').value)||0;
+  const v = Number(document.getElementById('ceValorUn').value)||0;
+  document.getElementById('ceTotalDisplay').textContent = fmtBRL(q*v);
+}
+async function confirmContratoEntrega(){
+  const contratoId = document.getElementById('ceContratoId').value;
+  const contrato = D.contratos.find(c=>c.id===contratoId);
+  if (!contrato) return;
+  const cat = D.categorias.find(c=>categoriaEhMilhoOuSoja(c) && normalizeStr(c.nome)===normalizeStr(contrato.produto));
+  const data = document.getElementById('ceData').value;
+  const fazenda_id = document.getElementById('ceFazenda').value;
+  const qtd = Number(document.getElementById('ceQtd').value)||0;
+  const valorUn = Number(document.getElementById('ceValorUn').value)||0;
+  const valor_total = qtd*valorUn;
+  const conta_id = document.getElementById('ceConta').value;
+  const data_vencimento = document.getElementById('ceDataRecebimento').value || null;
+
+  if (!data){ alert('Informe a data.'); return; }
+  if (!fazenda_id){ alert('Selecione a fazenda.'); return; }
+  if (!cat){ alert('Não encontrei uma categoria de produto (Milho/Soja) com o mesmo nome do produto do contrato.'); return; }
+  if (qtd<=0 || valorUn<=0){ alert('Informe quantidade e valor unitário.'); return; }
+  if (!conta_id){ alert('Selecione a conta prevista de recebimento.'); return; }
+
+  const saldo = contratoSaldo(contratoId, null);
+  if (qtd > saldo.qtd + 0.0001){ alert('Quantidade acima do saldo disponível do contrato ('+fmtSacas(saldo.qtd)+').'); return; }
+
+  const autoBaixado = deveAutoBaixar(data_vencimento);
+  const payload = {
+    tipo:'receita', data, categoria_id: cat.id, subcategoria_id: null, operacional: true,
+    fazenda_id, descricao: contrato.produto, quantidade: qtd, valor_unitario: valorUn, valor_total,
+    conta_id, pessoa_id: null, origem_produto: 'contrato', contrato_id: contratoId, data_vencimento,
+    safra_id: D.safraAtual, status: autoBaixado ? 'pago' : 'pendente'
+  };
+  if (autoBaixado){ payload.data_pagamento = data; payload.valor_pago = valor_total; }
+
+  const { data: inserted, error } = await sb.from('faz_lancamentos').insert(payload).select();
+  if (error){ alert('Erro ao registrar entrega: '+error.message); return; }
+
+  await alocarConsumoFifo(inserted[0].id, cat.nome, D.safraAtual, qtd);
+  await sb.from('faz_contratos').update({ status: autoBaixado ? 'liquidado' : 'entregue' }).eq('id', contratoId);
+
+  closeModal('ovContratoEntrega');
   await reloadSafraScopedData();
   goTab('contratos');
 }
