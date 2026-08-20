@@ -1297,12 +1297,12 @@ function renderDashboard(){
     <div class="grid2">
       <div class="card">
         <div class="cardHead"><h3>Despesas fixas × variáveis</h3></div>
-        <table><thead><tr><th>Tipo</th><th>Valor (R$)</th><th>R$/ha</th><th>% do faturado</th><th>Sacas equiv.</th><th>Sacas/ha</th></tr></thead><tbody>
-          <tr><td>Fixas</td><td>${fmtBRL(m.valorFixa)}</td><td>${m.valorFixaPorHa!=null?fmtBRL(m.valorFixaPorHa):'—'}</td><td>${fmtPct(m.pct(m.valorFixa))}</td><td>${fmtSacasDash(m.sacasFixa)}</td><td>${fmtSacasDash(m.sacasFixaPorHa)}</td></tr>
-          <tr><td>Variáveis</td><td>${fmtBRL(m.valorVar)}</td><td>${m.valorVarPorHa!=null?fmtBRL(m.valorVarPorHa):'—'}</td><td>${fmtPct(m.pct(m.valorVar))}</td><td>${fmtSacasDash(m.sacasVar)}</td><td>${fmtSacasDash(m.sacasVarPorHa)}</td></tr>
-          <tr style="font-weight:700; color:var(--verde2);"><td>Total (custo de produção)</td><td>${fmtBRL(m.valorTotalDesp)}</td><td>${m.valorTotalDespPorHa!=null?fmtBRL(m.valorTotalDespPorHa):'—'}</td><td>${fmtPct(m.pct(m.valorTotalDesp))}</td><td>${fmtSacasDash(m.sacasTotalDesp)}</td><td>${fmtSacasDash(m.sacasTotalDespPorHa)}</td></tr>
-          <tr style="color:var(--muted);"><td>Investimentos/financiamentos</td><td>${fmtBRL(m.valorInvestFinanc)}</td><td>${porHaOuTraco(m.valorInvestFinanc, totalHa)}</td><td>${fmtPct(m.pct(m.valorInvestFinanc))}</td><td>${m.precoMedio>0?fmtSacas(m.valorInvestFinanc/m.precoMedio):'—'}</td><td>${totalHa>0 && m.precoMedio>0?fmtSacas(m.valorInvestFinanc/m.precoMedio/totalHa):'—'}</td></tr>
-          <tr style="font-weight:700; color:var(--marrom); border-top:2px solid var(--linha);"><td>Total geral (com investimento/financiamento)</td><td>${fmtBRL(m.valorGeral)}</td><td>${m.valorGeralPorHa!=null?fmtBRL(m.valorGeralPorHa):'—'}</td><td>${fmtPct(m.pct(m.valorGeral))}</td><td>${fmtSacasDash(m.sacasGeral)}</td><td>${fmtSacasDash(m.sacasGeralPorHa)}</td></tr>
+        <table><thead><tr><th>Tipo</th><th>Valor (R$)</th><th>R$/ha</th><th>Sacas/ha</th><th>% do faturado</th></tr></thead><tbody>
+          <tr><td>Fixas</td><td>${fmtBRL(m.valorFixa)}</td><td>${m.valorFixaPorHa!=null?fmtBRL(m.valorFixaPorHa):'—'}</td><td>${fmtSacasDash(m.sacasFixaPorHa)}</td><td>${fmtPct(m.pct(m.valorFixa))}</td></tr>
+          <tr><td>Variáveis</td><td>${fmtBRL(m.valorVar)}</td><td>${m.valorVarPorHa!=null?fmtBRL(m.valorVarPorHa):'—'}</td><td>${fmtSacasDash(m.sacasVarPorHa)}</td><td>${fmtPct(m.pct(m.valorVar))}</td></tr>
+          <tr style="font-weight:700; color:var(--verde2);"><td>Total (custo de produção)</td><td>${fmtBRL(m.valorTotalDesp)}</td><td>${m.valorTotalDespPorHa!=null?fmtBRL(m.valorTotalDespPorHa):'—'}</td><td>${fmtSacasDash(m.sacasTotalDespPorHa)}</td><td>${fmtPct(m.pct(m.valorTotalDesp))}</td></tr>
+          <tr style="color:var(--muted);"><td>Investimentos/financiamentos</td><td>${fmtBRL(m.valorInvestFinanc)}</td><td>${porHaOuTraco(m.valorInvestFinanc, totalHa)}</td><td>${totalHa>0 && m.precoMedio>0?fmtSacas(m.valorInvestFinanc/m.precoMedio/totalHa):'—'}</td><td>${fmtPct(m.pct(m.valorInvestFinanc))}</td></tr>
+          <tr style="font-weight:700; color:var(--marrom); border-top:2px solid var(--linha);"><td>Total geral (com investimento/financiamento)</td><td>${fmtBRL(m.valorGeral)}</td><td>${m.valorGeralPorHa!=null?fmtBRL(m.valorGeralPorHa):'—'}</td><td>${fmtSacasDash(m.sacasGeralPorHa)}</td><td>${fmtPct(m.pct(m.valorGeral))}</td></tr>
         </tbody></table>
         ${m.precoMedio<=0 ? `<div class="pageDesc" style="margin:8px 0 0;">Lance uma receita de venda para calcular o equivalente em sacas.</div>` : ''}
         ${totalHa<=0 ? `<div class="pageDesc" style="margin:8px 0 0;">Cadastre a área (HA) da fazenda para calcular os valores por hectare.</div>` : ''}
@@ -1310,10 +1310,10 @@ function renderDashboard(){
 
       <div class="card">
         <div class="cardHead"><h3>Custo de produção</h3></div>
-        <table><thead><tr><th>Cenário</th><th>Valor (R$)</th><th>R$/ha</th><th>% do faturado</th><th>Sacas equiv.</th><th>Sacas/ha</th></tr></thead><tbody>
-          <tr><td>Hoje (lançado, pago ou não)</td><td>${fmtBRL(m.custoHoje)}</td><td>${m.custoHojePorHa!=null?fmtBRL(m.custoHojePorHa):'—'}</td><td>${fmtPct(m.pct(m.custoHoje))}</td><td>${fmtSacasDash(m.pontoEqHoje)}</td><td>${fmtSacasDash(m.pontoEqHojePorHa)}</td></tr>
-          <tr><td>Projetado (insumos variáveis + 30%)</td><td>${fmtBRL(m.custoProjetado)}</td><td>${m.custoProjetadoPorHa!=null?fmtBRL(m.custoProjetadoPorHa):'—'}</td><td>${fmtPct(m.pct(m.custoProjetado))}</td><td>${fmtSacasDash(m.pontoEqProjetado)}</td><td>${fmtSacasDash(m.pontoEqProjetadoPorHa)}</td></tr>
-          <tr><td>Realizado (já pago)</td><td>${fmtBRL(m.custoRealizado)}</td><td>${m.custoRealizadoPorHa!=null?fmtBRL(m.custoRealizadoPorHa):'—'}</td><td>${fmtPct(m.pct(m.custoRealizado))}</td><td>${fmtSacasDash(m.pontoEqRealizado)}</td><td>${fmtSacasDash(m.pontoEqRealizadoPorHa)}</td></tr>
+        <table><thead><tr><th>Cenário</th><th>Valor (R$)</th><th>R$/ha</th><th>Sacas/ha</th></tr></thead><tbody>
+          <tr><td>Hoje (lançado, pago ou não)</td><td>${fmtBRL(m.custoHoje)}</td><td>${m.custoHojePorHa!=null?fmtBRL(m.custoHojePorHa):'—'}</td><td>${fmtSacasDash(m.pontoEqHojePorHa)}</td></tr>
+          <tr><td>Projetado (insumos variáveis + 30%)</td><td>${fmtBRL(m.custoProjetado)}</td><td>${m.custoProjetadoPorHa!=null?fmtBRL(m.custoProjetadoPorHa):'—'}</td><td>${fmtSacasDash(m.pontoEqProjetadoPorHa)}</td></tr>
+          <tr><td>Realizado (já pago)</td><td>${fmtBRL(m.custoRealizado)}</td><td>${m.custoRealizadoPorHa!=null?fmtBRL(m.custoRealizadoPorHa):'—'}</td><td>${fmtSacasDash(m.pontoEqRealizadoPorHa)}</td></tr>
         </tbody></table>
       </div>
     </div>
