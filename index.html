@@ -416,10 +416,14 @@ tr:last-child td{border-bottom:none;}
   </div>
   <div class="field" id="dsContaWrap"><label>Conta de pagamento</label><select id="dsConta"></select></div>
   <div class="grid2" id="dsGraoWrap" style="display:none">
-    <div class="field"><label>Produto usado no pagamento</label><select id="dsGraoCategoria"></select></div>
-    <div class="field"><label>Quantidade de sacas</label><input id="dsGraoQtd" type="number" step="0.01"></div>
+    <div class="field"><label>Produto usado no pagamento</label><select id="dsGraoCategoria" onchange="onDsGraoCategoriaChange()"></select></div>
+    <div class="field"><label>Preço usado na conversão (R$/sc)</label><input id="dsGraoPreco" type="number" step="0.01" oninput="onDsGraoPrecoChange()"></div>
   </div>
-  <div class="pageDesc" id="dsGraoAviso" style="display:none; margin-top:-8px;">Se ainda não foi entregue (vencimento futuro), a baixa em grão fica reservada — o desconto no estoque só acontece quando você confirmar a baixa.</div>
+  <div class="field" id="dsGraoQtdWrap" style="display:none">
+    <label>Quantidade de sacas</label>
+    <input id="dsGraoQtd" type="number" step="0.01" oninput="onDsGraoQtdChange()">
+  </div>
+  <div class="pageDesc" id="dsGraoAviso" style="display:none; margin-top:-8px;">A quantidade de sacas é calculada automaticamente (valor da despesa ÷ preço). Se ainda não foi entregue (vencimento futuro), a baixa em grão fica reservada — o desconto no estoque só acontece quando você confirmar a baixa.</div>
   <div class="field"><label>Nº da nota (opcional)</label><input id="dsNota" placeholder="Nº nota"></div>
   <div class="field"><label>Data de vencimento (opcional)</label><input id="dsVencimento" type="date"></div>
   <div class="field"><label>Descrição/Observações (opcional)</label><input id="dsObservacoes" placeholder="Anotações gerais sobre esta despesa"></div>
@@ -459,9 +463,12 @@ tr:last-child td{border-bottom:none;}
     <div class="field"><label>Pagar com qual conta?</label><select id="bxConta"></select></div>
   </div>
   <div id="bxGraoWrap" style="display:none">
-    <div class="field"><label>Produto usado no pagamento</label><select id="bxGraoCategoria"></select></div>
-    <div class="field"><label>Quantidade de sacas entregues</label><input id="bxGraoQtd" type="number" step="0.01"></div>
-    <div class="pageDesc">Não afeta o saldo de nenhuma conta bancária — desconta direto do estoque de produção.</div>
+    <div class="grid2">
+      <div class="field"><label>Produto usado no pagamento</label><select id="bxGraoCategoria" onchange="onBxGraoCategoriaChange()"></select></div>
+      <div class="field"><label>Preço usado na conversão (R$/sc)</label><input id="bxGraoPreco" type="number" step="0.01" oninput="onBxGraoPrecoChange()"></div>
+    </div>
+    <div class="field"><label>Quantidade de sacas entregues</label><input id="bxGraoQtd" type="number" step="0.01" oninput="onBxGraoQtdChange()"></div>
+    <div class="pageDesc">A quantidade é calculada automaticamente (valor da despesa ÷ preço). Não afeta o saldo de nenhuma conta bancária — desconta direto do estoque de produção.</div>
   </div>
   <div class="field"><label>Data do pagamento</label><input id="bxData" type="date"></div>
   <div class="modalActions">
@@ -1688,12 +1695,18 @@ function onDsFormaChange(){
   const grao = document.getElementById('dsForma').value === 'grao';
   document.getElementById('dsContaWrap').style.display = grao ? 'none' : 'block';
   document.getElementById('dsGraoWrap').style.display = grao ? 'grid' : 'none';
+  document.getElementById('dsGraoQtdWrap').style.display = grao ? 'block' : 'none';
   document.getElementById('dsGraoAviso').style.display = grao ? 'block' : 'none';
   if (grao){
     const opcoes = D.categorias.filter(c=>categoriaEhMilhoOuSoja(c));
     document.getElementById('dsGraoCategoria').innerHTML = opcoes.length
       ? opcoes.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('')
       : '<option value="">Nenhuma categoria de grão cadastrada</option>';
+    if (!document.getElementById('dsGraoPreco').value){
+      const preco = precoMedioVendaAtual();
+      document.getElementById('dsGraoPreco').value = preco>0 ? preco.toFixed(2) : '';
+    }
+    onDsGraoPrecoChange();
   }
 }
 function openDespesaModal(id){
@@ -1708,10 +1721,6 @@ function openDespesaModal(id){
   document.getElementById('dsTipo').value = d.tipo_fixo_variavel || 'variavel';
   fillFazendaSelectSafra('dsFazenda', d.fazenda_id);
   fillPessoaSelectDespesa(d.pessoa_id);
-  document.getElementById('dsForma').value = d.forma_liquidacao || 'dinheiro';
-  onDsFormaChange();
-  fillContaSelectInto('dsConta', d.conta_id);
-  document.getElementById('dsGraoQtd').value = d.sacas_liquidacao || '';
   document.getElementById('dsNota').value = d.numero_nota || '';
   document.getElementById('dsVencimento').value = d.data_vencimento || '';
   document.getElementById('dsObservacoes').value = d.observacoes || '';
@@ -1726,7 +1735,40 @@ function openDespesaModal(id){
     dsItensAtual = [{ descricao:'', quantidade:1, valor_unitario:0 }];
   }
   renderDsItensBody();
+
+  document.getElementById('dsForma').value = d.forma_liquidacao || 'dinheiro';
+  fillContaSelectInto('dsConta', d.conta_id);
+  if (d.forma_liquidacao==='grao' && d.sacas_liquidacao){
+    document.getElementById('dsGraoQtd').value = d.sacas_liquidacao;
+    document.getElementById('dsGraoPreco').value = d.valor_total ? (d.valor_total/d.sacas_liquidacao).toFixed(2) : '';
+  } else {
+    document.getElementById('dsGraoQtd').value = '';
+    document.getElementById('dsGraoPreco').value = '';
+  }
+  onDsFormaChange();
   openModal('ovDespesa');
+}
+function precoMedioVendaAtual(){
+  const despesasF = filterByFazendaGlobal(D.lancamentos.filter(l=>l.tipo==='despesa'));
+  const receitasF = filterByFazendaGlobal(D.lancamentos.filter(l=>l.tipo==='receita'));
+  return calcDashboardMetrics(despesasF, receitasF, getTotalHaSafra()).precoMedio;
+}
+function onDsGraoCategoriaChange(){
+  if (!document.getElementById('dsGraoPreco').value){
+    const preco = precoMedioVendaAtual();
+    document.getElementById('dsGraoPreco').value = preco>0 ? preco.toFixed(2) : '';
+  }
+  onDsGraoPrecoChange();
+}
+function onDsGraoPrecoChange(){
+  const valorTotal = calcDespesaTotal();
+  const preco = Number(document.getElementById('dsGraoPreco').value)||0;
+  if (preco>0) document.getElementById('dsGraoQtd').value = (valorTotal/preco).toFixed(2);
+}
+function onDsGraoQtdChange(){
+  const valorTotal = calcDespesaTotal();
+  const qtd = Number(document.getElementById('dsGraoQtd').value)||0;
+  if (qtd>0) document.getElementById('dsGraoPreco').value = (valorTotal/qtd).toFixed(2);
 }
 async function saveDespesa(){
   const id = document.getElementById('dsId').value;
@@ -1818,7 +1860,13 @@ function openBaixaModal(id){
   document.getElementById('bxGraoCategoria').innerHTML = opcoesGrao.length
     ? opcoesGrao.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('')
     : '<option value="">Nenhuma categoria de grão cadastrada</option>';
-  document.getElementById('bxGraoQtd').value = d.sacas_liquidacao || '';
+  if (d.forma_liquidacao==='grao' && d.sacas_liquidacao){
+    document.getElementById('bxGraoQtd').value = d.sacas_liquidacao;
+    document.getElementById('bxGraoPreco').value = d.valor_total ? (d.valor_total/d.sacas_liquidacao).toFixed(2) : '';
+  } else {
+    document.getElementById('bxGraoQtd').value = '';
+    document.getElementById('bxGraoPreco').value = '';
+  }
   onBxFormaChange();
   document.getElementById('bxData').value = new Date().toISOString().slice(0,10);
   openModal('ovBaixa');
@@ -1827,6 +1875,34 @@ function onBxFormaChange(){
   const grao = document.getElementById('bxForma').value === 'grao';
   document.getElementById('bxDinheiroWrap').style.display = grao ? 'none' : 'block';
   document.getElementById('bxGraoWrap').style.display = grao ? 'block' : 'none';
+  if (grao){
+    if (!document.getElementById('bxGraoPreco').value){
+      const preco = precoMedioVendaAtual();
+      document.getElementById('bxGraoPreco').value = preco>0 ? preco.toFixed(2) : '';
+    }
+    onBxGraoPrecoChange();
+  }
+}
+function onBxGraoCategoriaChange(){
+  if (!document.getElementById('bxGraoPreco').value){
+    const preco = precoMedioVendaAtual();
+    document.getElementById('bxGraoPreco').value = preco>0 ? preco.toFixed(2) : '';
+  }
+  onBxGraoPrecoChange();
+}
+function onBxGraoPrecoChange(){
+  const id = document.getElementById('bxId').value;
+  const d = D.lancamentos.find(x=>x.id===id) || {};
+  const valorTotal = Number(d.valor_total||0);
+  const preco = Number(document.getElementById('bxGraoPreco').value)||0;
+  if (preco>0) document.getElementById('bxGraoQtd').value = (valorTotal/preco).toFixed(2);
+}
+function onBxGraoQtdChange(){
+  const id = document.getElementById('bxId').value;
+  const d = D.lancamentos.find(x=>x.id===id) || {};
+  const valorTotal = Number(d.valor_total||0);
+  const qtd = Number(document.getElementById('bxGraoQtd').value)||0;
+  if (qtd>0) document.getElementById('bxGraoPreco').value = (valorTotal/qtd).toFixed(2);
 }
 function calcBaixaDespesaTotal(){
   const id = document.getElementById('bxId').value;
