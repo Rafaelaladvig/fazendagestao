@@ -407,10 +407,20 @@ tr:last-child td{border-bottom:none;}
       <button type="button" class="btn small secondary" style="width:auto" onclick="openPessoaQuick('despesa')">+</button>
     </div>
   </div>
-  <div class="grid2">
-    <div class="field"><label>Conta de pagamento</label><select id="dsConta"></select></div>
-    <div class="field"><label>Nº da nota (opcional)</label><input id="dsNota" placeholder="Nº nota"></div>
+  <div class="field">
+    <label>Forma de pagamento</label>
+    <select id="dsForma" onchange="onDsFormaChange()">
+      <option value="dinheiro">Dinheiro</option>
+      <option value="grao">Em grão (permuta)</option>
+    </select>
   </div>
+  <div class="field" id="dsContaWrap"><label>Conta de pagamento</label><select id="dsConta"></select></div>
+  <div class="grid2" id="dsGraoWrap" style="display:none">
+    <div class="field"><label>Produto usado no pagamento</label><select id="dsGraoCategoria"></select></div>
+    <div class="field"><label>Quantidade de sacas</label><input id="dsGraoQtd" type="number" step="0.01"></div>
+  </div>
+  <div class="pageDesc" id="dsGraoAviso" style="display:none; margin-top:-8px;">Se ainda não foi entregue (vencimento futuro), a baixa em grão fica reservada — o desconto no estoque só acontece quando você confirmar a baixa.</div>
+  <div class="field"><label>Nº da nota (opcional)</label><input id="dsNota" placeholder="Nº nota"></div>
   <div class="field"><label>Data de vencimento (opcional)</label><input id="dsVencimento" type="date"></div>
   <div class="field"><label>Descrição/Observações (opcional)</label><input id="dsObservacoes" placeholder="Anotações gerais sobre esta despesa"></div>
   <div class="modalActions">
@@ -1135,7 +1145,7 @@ function calcDashboardMetrics(despesasF, receitasF, totalHa){
 
   const custoHoje = valorTotalDesp; // tudo que já foi lançado, pago ou não
   const custoRealizado = despOperacional.filter(d=>d.status==='pago').reduce((a,b)=>a+Number(b.valor_total||0),0);
-  const custoProjetado = custoHoje * 1.3;
+  const custoProjetado = valorVar * 1.3; // só insumos variáveis (defensivos, sementes, fertilizantes) sofrem a projeção de +30%
 
   const pontoEqHoje = precoMedio>0 ? custoHoje/precoMedio : null;
   const pontoEqProjetado = precoMedio>0 ? custoProjetado/precoMedio : null;
@@ -1272,7 +1282,7 @@ function renderDashboard(){
         <div class="cardHead"><h3>Custo de produção</h3></div>
         <table><thead><tr><th>Cenário</th><th>Valor (R$)</th><th>R$/ha</th><th>% do faturado</th><th>Sacas equiv.</th><th>Sacas/ha</th></tr></thead><tbody>
           <tr><td>Hoje (lançado, pago ou não)</td><td>${fmtBRL(m.custoHoje)}</td><td>${m.custoHojePorHa!=null?fmtBRL(m.custoHojePorHa):'—'}</td><td>${fmtPct(m.pct(m.custoHoje))}</td><td>${fmtSacasDash(m.pontoEqHoje)}</td><td>${fmtSacasDash(m.pontoEqHojePorHa)}</td></tr>
-          <tr><td>Projetado (hoje + 30%)</td><td>${fmtBRL(m.custoProjetado)}</td><td>${m.custoProjetadoPorHa!=null?fmtBRL(m.custoProjetadoPorHa):'—'}</td><td>${fmtPct(m.pct(m.custoProjetado))}</td><td>${fmtSacasDash(m.pontoEqProjetado)}</td><td>${fmtSacasDash(m.pontoEqProjetadoPorHa)}</td></tr>
+          <tr><td>Projetado (insumos variáveis + 30%)</td><td>${fmtBRL(m.custoProjetado)}</td><td>${m.custoProjetadoPorHa!=null?fmtBRL(m.custoProjetadoPorHa):'—'}</td><td>${fmtPct(m.pct(m.custoProjetado))}</td><td>${fmtSacasDash(m.pontoEqProjetado)}</td><td>${fmtSacasDash(m.pontoEqProjetadoPorHa)}</td></tr>
           <tr><td>Realizado (já pago)</td><td>${fmtBRL(m.custoRealizado)}</td><td>${m.custoRealizadoPorHa!=null?fmtBRL(m.custoRealizadoPorHa):'—'}</td><td>${fmtPct(m.pct(m.custoRealizado))}</td><td>${fmtSacasDash(m.pontoEqRealizado)}</td><td>${fmtSacasDash(m.pontoEqRealizadoPorHa)}</td></tr>
         </tbody></table>
       </div>
@@ -1333,10 +1343,11 @@ function pontoEqCard(label, sacas, jaVendido, sacasPorHa){
   }
   const diff = jaVendido - sacas;
   const atingido = diff >= 0;
+  const principal = sacasPorHa!=null ? fmtSacas(sacasPorHa)+'/ha' : fmtSacas(sacas);
   return `<div class="kpi">
     <div class="lbl">${esc(label)}</div>
-    <div class="val">${fmtSacas(sacas)}</div>
-    ${sacasPorHa!=null ? `<div style="font-size:11.5px; color:var(--muted); margin-top:2px;">${fmtSacas(sacasPorHa)}/ha</div>` : ''}
+    <div class="val">${principal}</div>
+    ${sacasPorHa!=null ? `<div style="font-size:11.5px; color:var(--muted); margin-top:2px;">${fmtSacas(sacas)} no total</div>` : ''}
     <div style="font-size:12px; margin-top:6px; color:${atingido?'var(--pago)':'var(--vermelho)'}; font-weight:600;">
       ${atingido ? '✓ Ponto de equilíbrio atingido' : 'Faltam '+fmtSacas(Math.abs(diff))+' para equilibrar'}
     </div>
@@ -1643,6 +1654,18 @@ async function saveMaquinaQuick(){
   closeModal('ovMaquinaQuick');
   fillMaquinaSelect(data[0].id);
 }
+function onDsFormaChange(){
+  const grao = document.getElementById('dsForma').value === 'grao';
+  document.getElementById('dsContaWrap').style.display = grao ? 'none' : 'block';
+  document.getElementById('dsGraoWrap').style.display = grao ? 'grid' : 'none';
+  document.getElementById('dsGraoAviso').style.display = grao ? 'block' : 'none';
+  if (grao){
+    const opcoes = D.categorias.filter(c=>categoriaEhMilhoOuSoja(c));
+    document.getElementById('dsGraoCategoria').innerHTML = opcoes.length
+      ? opcoes.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('')
+      : '<option value="">Nenhuma categoria de grão cadastrada</option>';
+  }
+}
 function openDespesaModal(id){
   if (!id && needSafra()) return;
   document.getElementById('dsId').value = id||'';
@@ -1655,7 +1678,10 @@ function openDespesaModal(id){
   document.getElementById('dsTipo').value = d.tipo_fixo_variavel || 'variavel';
   fillFazendaSelectSafra('dsFazenda', d.fazenda_id);
   fillPessoaSelectDespesa(d.pessoa_id);
+  document.getElementById('dsForma').value = d.forma_liquidacao || 'dinheiro';
+  onDsFormaChange();
   fillContaSelectInto('dsConta', d.conta_id);
+  document.getElementById('dsGraoQtd').value = d.sacas_liquidacao || '';
   document.getElementById('dsNota').value = d.numero_nota || '';
   document.getElementById('dsVencimento').value = d.data_vencimento || '';
   document.getElementById('dsObservacoes').value = d.observacoes || '';
@@ -1681,7 +1707,11 @@ async function saveDespesa(){
   const tipo_fixo_variavel = grupo==='Despesa' ? document.getElementById('dsTipo').value : null;
   const fazenda_id = document.getElementById('dsFazenda').value;
   const pessoa_id = document.getElementById('dsPessoa').value || null;
-  const conta_id = document.getElementById('dsConta').value;
+  const forma = document.getElementById('dsForma').value;
+  const conta_id = forma==='dinheiro' ? document.getElementById('dsConta').value : null;
+  const graoCategoriaId = document.getElementById('dsGraoCategoria').value || null;
+  const graoCategoria = D.categorias.find(c=>c.id===graoCategoriaId);
+  const graoQtd = Number(document.getElementById('dsGraoQtd').value)||0;
   const numero_nota = document.getElementById('dsNota').value.trim();
   const data_vencimento = document.getElementById('dsVencimento').value || null;
   const observacoes = document.getElementById('dsObservacoes').value.trim();
@@ -1693,7 +1723,8 @@ async function saveDespesa(){
   if (!fazenda_id){ alert('Selecione a fazenda.'); return; }
   if (!itensValidos.length){ alert('Adicione ao menos um item com descrição.'); return; }
   if (itensValidos.some(it=>!it.quantidade || !it.valor_unitario)){ alert('Informe quantidade e valor unitário em todos os itens.'); return; }
-  if (!conta_id){ alert('Selecione a conta de pagamento.'); return; }
+  if (forma==='dinheiro' && !conta_id){ alert('Selecione a conta de pagamento.'); return; }
+  if (forma==='grao' && (!graoCategoria || graoQtd<=0)){ alert('Selecione o produto e a quantidade de sacas usadas no pagamento.'); return; }
 
   let maquinario_id = null;
   if (categoriaEhManutencaoMaquina(cat)){
@@ -1710,6 +1741,7 @@ async function saveDespesa(){
     tipo:'despesa', data, categoria_id, subcategoria_id, tipo_fixo_variavel,
     fazenda_id, descricao, quantidade: null, valor_unitario: null, valor_total, observacoes,
     pessoa_id, conta_id, numero_nota, data_vencimento, maquinario_id,
+    forma_liquidacao: forma, sacas_liquidacao: forma==='grao' ? graoQtd : null,
     safra_id: D.safraAtual, updated_at: new Date().toISOString()
   };
   let lancId = id;
@@ -1723,6 +1755,9 @@ async function saveDespesa(){
     const { data: inserted, error } = await sb.from('faz_lancamentos').insert(insertPayload).select();
     if (error){ alert('Erro ao salvar despesa: '+error.message); return; }
     lancId = inserted[0].id;
+    if (autoBaixado && forma==='grao' && graoCategoria){
+      await alocarConsumoFifo(lancId, graoCategoria.nome, D.safraAtual, graoQtd);
+    }
   }
 
   await sb.from('faz_lancamento_itens').delete().eq('lancamento_id', lancId);
@@ -1744,7 +1779,7 @@ function openBaixaModal(id){
   const d = D.lancamentos.find(x=>x.id===id) || {};
   document.getElementById('bxId').value = id;
   document.getElementById('bxValorOriginal').textContent = fmtBRL(d.valor_total);
-  document.getElementById('bxForma').value = 'dinheiro';
+  document.getElementById('bxForma').value = d.forma_liquidacao || 'dinheiro';
   document.getElementById('bxDesconto').value = 0;
   document.getElementById('bxJurosMulta').value = 0;
   calcBaixaDespesaTotal();
@@ -1753,7 +1788,7 @@ function openBaixaModal(id){
   document.getElementById('bxGraoCategoria').innerHTML = opcoesGrao.length
     ? opcoesGrao.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('')
     : '<option value="">Nenhuma categoria de grão cadastrada</option>';
-  document.getElementById('bxGraoQtd').value = '';
+  document.getElementById('bxGraoQtd').value = d.sacas_liquidacao || '';
   onBxFormaChange();
   document.getElementById('bxData').value = new Date().toISOString().slice(0,10);
   openModal('ovBaixa');
